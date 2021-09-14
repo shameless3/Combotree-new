@@ -9,7 +9,7 @@ set(MKL_LINK_DIRECTORY "/opt/intel/mkl/lib/intel64")
 set(MKL_INCLUDE_DIRECTORY "/opt/intel/mkl/include")
 
 # use `cmake -DSERVER:BOOL=ON ..` when running in server
-option(SERVER           "Run in server"           OFF)
+option(SERVER           "Run in server"           ON)
 option(USE_LIBPMEM      "libpmem or libvmmalloc"  ON)
 option(BUF_SORT         "Sort buffer in KVBufer"  OFF)
 option(STREAMING_LOAD   "Use Non-temporal Load"   OFF)

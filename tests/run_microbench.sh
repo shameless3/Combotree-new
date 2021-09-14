@@ -1,6 +1,6 @@
 #!/bin/bash
 BUILDDIR=$(dirname "$0")/../build/
-WorkLoad="/home/sbh/asia-latest.csv"
+WorkLoad="/home/wjy/asia-latest.csv"
 Loadname="longlat-insertio"
 function Run() {
     dbname=$1
@@ -14,10 +14,10 @@ function Run() {
     # numactl --cpubind=1 --membind=1 \
     numactl --cpubind=1 --membind=1 ${BUILDDIR}/microbench --dbname ${dbname} --load-size ${loadnum} \
     --put-size ${opnum} --get-size ${opnum} --workload ${WorkLoad} \
-    --loadstype 3 -t $thread | tee -a microbench-${dbname}-${Loadname}.txt
+    --loadstype 0 -t $thread | tee -a microbench-${dbname}-${Loadname}.txt
 
     echo "${BUILDDIR}/microbench --dbname ${dbname} --load-size ${loadnum} "\
-    "--put-size ${opnum} --get-size ${opnum} --workload ${WorkLoad} --loadstype 2 -t $thread"
+    "--put-size ${opnum} --get-size ${opnum} --workload ${WorkLoad} --loadstype 0 -t $thread"
 }
 
 # DBName: combotree fastfair pgm xindex alex
@@ -58,4 +58,6 @@ function main() {
         Run $dbname $loadnum $opnum $scansize $thread
     fi 
 }
-main all 400000000 10000000 100000 1
+# main fastfair 400000000 10000000 100000 1
+# main xindex 400000000 10000000 100000 1
+main lipp 400000000 10000000 100000 1

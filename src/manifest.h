@@ -38,7 +38,7 @@ class Manifest {
       std::filesystem::remove(manifest_path);
       pop_ = pmem::obj::pool<Root>::create(manifest_path,
           "Combo Tree Manifest", size_, 0666);
-      root_ = pop_.root();
+      root_ = pop_.get_root();
       std::cout << "Create mainfest at path: " << manifest_path << std::endl;
       pmem::obj::make_persistent_atomic<std::string>(
           pop_, root_->pmemkv_path, dir_ + DEFAULT_PMEMKV_PATH);

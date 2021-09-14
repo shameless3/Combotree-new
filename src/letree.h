@@ -15,6 +15,8 @@
 namespace combotree
 {
 
+//#define USE_DELETE_0
+
 static const size_t max_entry_count = 1024;
 static const size_t min_entry_count = 64;
 typedef combotree::PointerBEntry bentry_t;
@@ -223,7 +225,7 @@ public:
 
         if(ret == status::Full ) { // LearnGroup数组满了，需要扩展
             if(next_entry_count > max_entry_count) {
-                LOG(Debug::INFO, "Need expand tree: group entry count %d.", next_entry_count);
+                // LOG(Debug::INFO, "Need expand tree: group entry count %d.", next_entry_count);
                 return ret;
             }
             expand(mem);
@@ -239,19 +241,42 @@ public:
         // Common::g_metic.tracepoint("FindEntry");
         auto ret = entry_space[entry_id].Get(mem, key, value);
         if(!ret) {
-            std::cout << "Key: " << key << std::endl;
-            entry_space[entry_id].Show(mem);
-            entry_space[entry_id + 1].Show(mem);
-            entry_space[entry_id + 2].Show(mem);
-            assert(0);
+            //std::cout << "Key: " << key << std::endl;
+            //entry_space[entry_id].Show(mem);
+            //entry_space[entry_id + 1].Show(mem);
+            //entry_space[entry_id + 2].Show(mem);
+            //assert(0);
         }
         // Common::g_metic.tracepoint("EntryGet");
+        return ret;
+    }
+
+    bool Scan(CLevel::MemControl* mem,uint64_t start_key,int &len,std::vector<std::pair<uint64_t,uint64_t>> &results) const{
+        int entry_id;
+        bool ret;
+        if(start_key == 0){
+            entry_id = 0;
+            ret = entry_space[entry_id].Scan(mem, 0, len,results);
+        }else{
+            entry_id = find_entry(start_key);
+            ret = entry_space[entry_id].Scan(mem, start_key, len,results);
+        }
+        while(ret != status::OK && entry_id < nr_entries_-1){
+            ++entry_id;
+            ret = entry_space[entry_id].Scan(mem, 0, len,results);
+        }
+        //cout << "in group:" << len << endl;
         return ret;
     }
 
     bool fast_fail(CLevel::MemControl* mem, uint64_t key, uint64_t& value) {
         if(nr_entries_ <= 0 || key < min_key) return false;
         return Get(mem, key, value);
+    }
+
+    bool scan_fast_fail(CLevel::MemControl* mem, uint64_t key) {
+        if(nr_entries_ <= 0 || key < min_key) return false;
+        return true;
     }
 
     bool Update(CLevel::MemControl* mem, uint64_t key, uint64_t value) {
@@ -582,6 +607,14 @@ public:
         return find_slow(key, value);
     }
 
+    bool Scan(uint64_t start_key,int len,std::vector<std::pair<uint64_t,uint64_t>> &results){
+        int length = len;
+        if(scan_fast(start_key,length,results)){
+            return true;
+        }
+        return scan_slow(start_key,length,results);
+    }
+
     bool Delete(uint64_t key) {
         int group_id = find_group(key);
         auto ret = group_space[group_id].Delete(clevel_mem_, key);
@@ -610,9 +643,41 @@ public:
         return group_space[group_id].fast_fail(clevel_mem_, key, value);
     }
 
+    ALWAYS_INLINE bool scan_fast(uint64_t start_key, int & len,std::vector<std::pair<uint64_t,uint64_t>> &results) const {
+        int group_id = model.predict(start_key) / min_entry_count;
+        group_id = std::min(std::max(0, group_id), (int)nr_groups_ - 1);
+        if(group_space[group_id].scan_fast_fail(clevel_mem_, start_key)){
+            scan_slow(start_key,len,results,group_id);
+            return true;
+        }
+        return false;
+    }
+
     ALWAYS_INLINE bool find_slow(uint64_t key, uint64_t& value) const {
         int group_id = find_group(key);
         return group_space[group_id].Get(clevel_mem_, key, value);
+    }
+
+    ALWAYS_INLINE bool scan_slow(uint64_t start_key, int & len,std::vector<std::pair<uint64_t,uint64_t>> &results,int fast_group_id = 0) const {
+        int group_id = 0;
+        if(fast_group_id != 0){
+            group_id = fast_group_id;
+        }else{
+            group_id = find_group(start_key);
+        }
+        auto ret = group_space[group_id].Scan(clevel_mem_, start_key, len,results);
+        while(ret != status::OK && group_id < nr_groups_-1){
+            ++group_id;
+            while(group_space[group_id].nr_entries_ == 0){
+                ++group_id;
+            }
+            ret = group_space[group_id].Scan(clevel_mem_, 0, len,results);
+        }
+        // cout << len << endl;
+        if(len > 0){
+            std::cout << len << std::endl;
+        }
+        return 0;
     }
 
     void ExpandTree() {
@@ -657,7 +722,7 @@ public:
         //     model.init(entry_keys, entry_keys.size(), entry_keys.size() / 256);
         // }
         // std::cout << "Entry count: " << 
-        LOG(Debug::INFO, "Entry_count: %ld, %d", entry_count, entry_seq);
+        //LOG(Debug::INFO, "Entry_count: %ld, %d", entry_count, entry_seq);
         // int new_nr_groups = std::ceil(1.0 * entry_count / min_entry_count);
         int new_nr_groups = std::ceil(1.0 * entry_count / min_entry_count);
         group *new_group_space = (group *)NVM::data_alloc->alloc_aligned(new_nr_groups * sizeof(group));
@@ -716,8 +781,8 @@ public:
         nr_groups_ = new_nr_groups;
         group_space = new_group_space;
         uint64_t expand_time = timer.End();
-        LOG(Debug::INFO, "Finish expanding group, new group count %ld,  expansion time is %lfs", 
-                nr_groups_, (double)expand_time/1000000.0);
+        // LOG(Debug::INFO, "Finish expanding group, new group count %ld,  expansion time is %lfs", 
+                //nr_groups_, (double)expand_time/1000000.0);
         // Show();
     }
 

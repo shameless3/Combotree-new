@@ -12,6 +12,7 @@
 #include "random.h"
 #include "nvm_alloc.h"
 #include "timer.h"
+#include "util.h"
 
 size_t LOAD_SIZE   = 10000000;
 size_t PUT_SIZE    = 6000000;
@@ -160,16 +161,13 @@ int main(int argc, char** argv) {
   std::vector<uint64_t> key;
 
   if (use_data_file) {
-    std::ifstream data("./data.dat");
+    std::ifstream data("/home/wjy/generate_random_osm_longlat.dat");
     if (!data.good()) {
       std::cout << "can not open data.dat!" << std::endl;
       assert(0);
     }
-    for (size_t i = 0; i < LOAD_SIZE+PUT_SIZE; ++i) {
-      uint64_t k;
-      data >> k;
-      key.push_back(k);
-    }
+    const std::string dataname = "/home/wjy/generate_random_osm_longlat.dat";
+    key = util::load_data<uint64_t>(dataname);
     std::cout << "finish read data.dat" << std::endl;
   } else {
     Random rnd(0, LOAD_SIZE+PUT_SIZE-1);
@@ -192,7 +190,8 @@ int main(int argc, char** argv) {
   // } else if(dbName == "learngroup") {
   //   db = new LearnGroupDB();
   } else {
-    db = new ComboTreeDb();
+    db = new LetDB();
+    //db = new ComboTreeDb();
   }
 
   db->Init();
@@ -209,6 +208,21 @@ int main(int argc, char** argv) {
     std::cerr << "command error: " << cmd_buf << std::endl;
     return -1;
   }
+  uint64_t load_pos = 0;
+  //
+  // {
+  //   int init_size = 1e3;
+  //   std::mt19937_64 gen_payload(std::random_device{}());
+  //   auto values = new std::pair<uint64_t, uint64_t>[init_size];
+  //   for (int i = 0; i < init_size; i++) {
+  //     values[i].first = key[i];
+  //     values[i].second = static_cast<uint64_t>(gen_payload());
+  //   }
+  //   std::sort(values, values + init_size,
+  //             [](auto const& a, auto const& b) { return a.first < b.first; });
+  //   db->Bulk_load(values, init_size);
+  //   load_pos = init_size;
+  // }
   // Load
   per_thread_size = LOAD_SIZE / thread_num;
   timer.Record("start");
@@ -216,7 +230,7 @@ int main(int argc, char** argv) {
     threads.emplace_back([=,&key](){
       size_t start_pos = i*per_thread_size;
       size_t size = (i == thread_num-1) ? LOAD_SIZE-(thread_num-1)*per_thread_size : per_thread_size;
-      for (size_t j = 0; j < size; ++j) {
+      for (size_t j = load_pos; j < size; ++j) {
         auto ret = db->Put(key[start_pos+j], key[start_pos+j]);
         if (ret != 1) {
           std::cout << "load error, key: " << key[start_pos+j] << ", size: " << j << std::endl;
@@ -231,50 +245,11 @@ int main(int argc, char** argv) {
   timer.Record("stop");
   threads.clear();
   uint64_t total_time = timer.Microsecond("stop", "start");
-  std::cout << "load: " << total_time/1000000.0 << " " << (double)LOAD_SIZE/(double)total_time*1000000.0 << std::endl;
-  db->PrintStatic();
-  // Put
-  per_thread_size = PUT_SIZE / thread_num;
-  timer.Clear();
-  timer.Record("start");
-  for (int i = 0; i < thread_num; ++i) {
-    threads.emplace_back([=,&key](){
-      size_t start_pos = i*per_thread_size+LOAD_SIZE;
-      size_t size = (i == thread_num-1) ? PUT_SIZE-(thread_num-1)*per_thread_size : per_thread_size;
-      for (size_t j = 0; j < size; ++j) {
-        auto ret = db->Put(key[start_pos+j], key[start_pos+j]);
-        if (ret != 1) {
-          std::cout << "put error!" << std::endl;
-          assert(0);
-        }
-      }
-    });
-  }
-  for (auto& t : threads)
-    t.join();
-  timer.Record("stop");
-  threads.clear();
-  total_time = timer.Microsecond("stop", "start");
-  std::cout << "put:  " << total_time/1000000.0 << " " << (double)PUT_SIZE/(double)total_time*1000000.0 << std::endl;
-
-  // statistic
-  // std::cout << "clevel time:    " << db->CLevelTime()/1000000.0 << std::endl;
-  // std::cout << "entries:        " << db->BLevelEntries() << std::endl;
-  // std::cout << "clevels:        " << db->CLevelCount() << std::endl;
-  // std::cout << "clevel percent: " << (double)db->CLevelCount() / db->BLevelEntries() * 100.0 << "%" << std::endl;
-  // std::cout << "size:           " << db->Size() << std::endl;
-  // std::cout << "usage:          " << human_readable(db->Usage()) << std::endl;
-  // std::cout << "bytes-per-pair: " << (double)db->Usage() / db->Size() << std::endl;
-  // db->BLevelCompression();
+  std::cout << "load: " << total_time/1000000.0 << " " << (double)LOAD_SIZE/(double)total_time*1000000.0/1000.0 << std::endl;
   db->PrintStatic();
 
-  sprintf(cmd_buf, "pmap %d > ./usage_after.txt", pid);
-  if (system(cmd_buf) != 0) {
-    std::cerr << "command error: " << cmd_buf << std::endl;
-    return -1;
-  }
 
-  // Get
+  //Get
   Random get_rnd(0, GET_SIZE-1);
   for (size_t i = 0; i < GET_SIZE; ++i)
     std::swap(key[i],key[get_rnd.Next()]);
@@ -301,7 +276,7 @@ int main(int argc, char** argv) {
   timer.Record("stop");
   threads.clear();
   total_time = timer.Microsecond("stop", "start");
-  std::cout << "get: " << total_time/1000000.0 << " " << (double)GET_SIZE/(double)total_time*1000000.0 << std::endl;
+  std::cout << "get: " << total_time/1000000.0 << " " << (double)GET_SIZE/(double)total_time*1000000.0/1000.0 << std::endl;
 
   // scan
   for (auto scan : scan_size) {
@@ -336,7 +311,7 @@ int main(int argc, char** argv) {
     timer.Record("stop");
     threads.clear();
     total_time = timer.Microsecond("stop", "start");
-    std::cout << "scan " << scan << ": " << total_time/1000000.0 << " " << (double)total_size/(double)total_time*1000000.0 << std::endl;
+    std::cout << "scan " << scan << ": " << total_time/1000000.0 << " " << (double)total_size/(double)total_time*1000000.0/1000.0 << std::endl;
   }
 
   // sort_scan
@@ -401,7 +376,52 @@ int main(int argc, char** argv) {
   timer.Record("stop");
   threads.clear();
   total_time = timer.Microsecond("stop", "start");
-  std::cout << "delete: " << total_time/1000000.0 << " " << (double)DELETE_SIZE/(double)total_time*1000000.0 << std::endl;
+  std::cout << "delete: " << total_time/1000000.0 << " " << (double)DELETE_SIZE/(double)total_time*1000000.0/1000.0 << std::endl;
+
+    // Put
+  per_thread_size = PUT_SIZE / thread_num;
+  timer.Clear();
+  timer.Record("start");
+  for (int i = 0; i < thread_num; ++i) {
+    threads.emplace_back([=,&key](){
+      size_t start_pos = i*per_thread_size+LOAD_SIZE;
+      size_t size = (i == thread_num-1) ? PUT_SIZE-(thread_num-1)*per_thread_size : per_thread_size;
+      for (size_t j = 0; j < size; ++j) {
+        auto ret = db->Put(key[start_pos+j], key[start_pos+j]);
+        if (ret != 1) {
+          std::cout << "put error!" << std::endl;
+          assert(0);
+        }
+      }
+    });
+  }
+  std::cout<<"threads size = " << threads.size()<<endl;
+  for (auto& t : threads){
+    t.join();
+  } 
+  timer.Record("stop");
+  threads.clear();
+  total_time = timer.Microsecond("stop", "start");
+  std::cout << "put:  " << total_time/1000000.0 << " " << (double)PUT_SIZE/(double)total_time*1000000.0/1000.0 << std::endl;
+
+
+
+  // statistic
+  // std::cout << "clevel time:    " << db->CLevelTime()/1000000.0 << std::endl;
+  // std::cout << "entries:        " << db->BLevelEntries() << std::endl;
+  // std::cout << "clevels:        " << db->CLevelCount() << std::endl;
+  // std::cout << "clevel percent: " << (double)db->CLevelCount() / db->BLevelEntries() * 100.0 << "%" << std::endl;
+  // std::cout << "size:           " << db->Size() << std::endl;
+  // std::cout << "usage:          " << human_readable(db->Usage()) << std::endl;
+  // std::cout << "bytes-per-pair: " << (double)db->Usage() / db->Size() << std::endl;
+  // db->BLevelCompression();
+  db->PrintStatic();
+
+  sprintf(cmd_buf, "pmap %d > ./usage_after.txt", pid);
+  if (system(cmd_buf) != 0) {
+    std::cerr << "command error: " << cmd_buf << std::endl;
+    return -1;
+  }
 
   delete db;
   NVM::env_exit();

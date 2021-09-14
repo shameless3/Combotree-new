@@ -17,6 +17,7 @@
 #include "../src/learn_group.h"
 #include "random.h"
 #include "../src/letree.h"
+#include "lipp/lipp.h"
 
 using combotree::ComboTree;
 using FastFair::btree;
@@ -32,22 +33,63 @@ const char *workloads[] = {
   // "workloade.spec",
   // "workloadf.spec",
   "workloada_insert_0.spec",
-  "workloada_insert_10.spec",
-  "workloada_insert_20.spec",
-  "workloada_insert_30.spec",
-  "workloada_insert_40.spec",
-  "workloada_insert_50.spec",
-  "workloada_insert_60.spec",
-  "workloada_insert_70.spec",
-  "workloada_insert_80.spec",
-  "workloada_insert_90.spec",
-  "workloada_insert_100.spec",
+  // "workloada_insert_10.spec",
+  // "workloada_insert_20.spec",
+  // "workloada_insert_30.spec",
+  // "workloada_insert_40.spec",
+  // "workloada_insert_50.spec",
+  // "workloada_insert_60.spec",
+  // "workloada_insert_70.spec",
+  // "workloada_insert_80.spec",
+  // "workloada_insert_90.spec",
+  // "workloada_insert_100.spec",
   // "workload_read.spec",
   // "workload_insert.spec",
 
 };
 
 #define ArrayLen(arry) (sizeof(arry) / sizeof(arry[0]))
+
+class LIPPDB : public ycsbc::KvDB
+  {
+    typedef LIPP<uint64_t,uint64_t> lipp_t;
+    public:
+    LIPPDB():lipp_(nullptr){}
+    LIPPDB(lipp_t *lipp):lipp_(lipp){}
+    void Init()
+    {
+      lipp_ = new lipp_t();
+    }
+    void Info()
+    {
+      NVM::show_stat();
+    }
+    void Close() { 
+
+    }
+    int Put(uint64_t key, uint64_t value)
+    {
+      lipp_->insert(key,value);
+      return 1;
+    }
+    int Get(uint64_t key, uint64_t &value)
+    {
+      value = lipp_->at(key);
+      // assert(value == key);
+      return 1;
+    }
+    int Update(uint64_t key, uint64_t value){
+      return 1;
+    }
+    int Delete(uint64_t key){
+      return 1;
+    }
+    int Scan(uint64_t start_key, int len, std::vector<std::pair<uint64_t, uint64_t>> &results){
+      return 1;
+    }
+    private:
+    lipp_t *lipp_;
+  };
 
 class FastFairDb : public ycsbc::KvDB {
 public:
@@ -627,8 +669,11 @@ int main(int argc, const char *argv[])
       db = new LearnGroupDB();
     } else if(dbName == "letree") {
       db = new LetDB();
-    }
-    else {
+    }else if(dbName == "stx") {
+      db = new StxDB();
+    }else if(dbName == "lipp") {
+      db = new LIPPDB();
+    }else {
       db = new ComboTreeDb();
     }
     db->Init();

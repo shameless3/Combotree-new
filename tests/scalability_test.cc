@@ -208,7 +208,9 @@ int main(int argc, char** argv) {
     db = new AlexDB();
   } else if(dbName == "letree") {
     db = new LetDB();
-  } else {
+  } else if(dbName == "lipp"){
+    db = new LIPPDb();
+  }else {
     db = new ComboTreeDb();
   }
 
@@ -303,17 +305,17 @@ int main(int argc, char** argv) {
   //   if(LOAD_SIZE == load_finished) break;
   // }
   {
-    int init_size = 1e3;
-    std::mt19937_64 gen_payload(std::random_device{}());
-    auto values = new std::pair<uint64_t, uint64_t>[init_size];
-    for (int i = 0; i < init_size; i++) {
-      values[i].first = key[LOAD_SIZE + PUT_SIZE + i];
-      values[i].second = static_cast<uint64_t>(gen_payload());
-    }
-    std::sort(values, values + init_size,
-              [](auto const& a, auto const& b) { return a.first < b.first; });
-    db->Bulk_load(values, init_size);
-    load_pos = init_size;
+    // int init_size = 1e3;
+    // std::mt19937_64 gen_payload(std::random_device{}());
+    // auto values = new std::pair<uint64_t, uint64_t>[init_size];
+    // for (int i = 0; i < init_size; i++) {
+    //   values[i].first = key[LOAD_SIZE + PUT_SIZE + i];
+    //   values[i].second = static_cast<uint64_t>(gen_payload());
+    // }
+    // std::sort(values, values + init_size,
+    //           [](auto const& a, auto const& b) { return a.first < b.first; });
+    // db->Bulk_load(values, init_size);
+    // load_pos = init_size;
   }
   {
     PUT_SIZE = 10000000;
@@ -339,29 +341,31 @@ int main(int argc, char** argv) {
           prev_pos = load_pos + 1;
           // if(prev_pos % GetMetic == 0)
           { // small get only 10%
-            size_t value;
-            get_timer.Clear();
-            get_timer.Record("start");
-            for(int i = 0; i < GET_SIZE; i ++) {
-              bool ret = db->Get(key[get_rnd.Next() % load_pos], value);
-              if (ret != true) {
-                std::cout << "get error!" << std::endl;
-                assert(0);
-              }
-            }
-            get_timer.Record("stop");
-            uint64_t total_time  = get_timer.Microsecond("stop", "start");
-            std::cout << "[Metic-Read]: After Load "<< prev_pos << " get: "
-                    << "cost " << total_time/1000000.0 << "s, " 
-                    << "iops " << (double)(GET_SIZE)/(double)total_time*1000000.0 << " .";
-            NVM::const_stat.PrintOperate(GET_SIZE);
-            std::cout << "[Metic-Read]: ";
-            db->PrintStatic();
-            // GET_SIZE = pow(10, (int)std::log10(prev_pos) - 1);
-            // GET_SIZE = prev_pos / 10;
-            // GET_SIZE = std::min(1000000UL, GET_SIZE);
-            // GetMetic = std::min(1000000UL, GET_SIZE * 10);
-            std::cout << "Get size: " << GET_SIZE << ": " << GetMetic << std::endl;
+            // size_t value;
+            // get_timer.Clear();
+            // get_timer.Record("start");
+            // std::cout << "get start..." << endl;
+            // for(int i = 0; i < GET_SIZE; i ++) {
+            //   std::cout << "get " << i << endl;
+            //   bool ret = db->Get(key[get_rnd.Next() % load_pos], value);
+            //   if (ret != true) {
+            //     std::cout << "get error!" << std::endl;
+            //     assert(0);
+            //   }
+            // }
+            // get_timer.Record("stop");
+            // uint64_t total_time  = get_timer.Microsecond("stop", "start");
+            // std::cout << "[Metic-Read]: After Load "<< prev_pos << " get: "
+            //         << "cost " << total_time/1000000.0 << "s, " 
+            //         << "iops " << (double)(GET_SIZE)/(double)total_time*1000000.0 << " .";
+            // NVM::const_stat.PrintOperate(GET_SIZE);
+            // std::cout << "[Metic-Read]: ";
+            // db->PrintStatic();
+            // // GET_SIZE = pow(10, (int)std::log10(prev_pos) - 1);
+            // // GET_SIZE = prev_pos / 10;
+            // // GET_SIZE = std::min(1000000UL, GET_SIZE);
+            // // GetMetic = std::min(1000000UL, GET_SIZE * 10);
+            // std::cout << "Get size: " << GET_SIZE << ": " << GetMetic << std::endl;
           }
 
           load_timer.Clear();

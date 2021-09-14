@@ -10,6 +10,7 @@
 #include <vector>
 #include <set>
 #include <map>
+#include <algorithm>
 
 #include "db_interface.h"
 #include "timer.h"
@@ -26,8 +27,8 @@ using namespace dbInter;
 struct operation
 {
     /* data */
-    uint32_t op_type;
-    uint32_t op_len; // for only scan
+    uint64_t op_type;
+    uint64_t op_len; // for only scan
     uint64_t key_num;
 };
 
@@ -39,12 +40,12 @@ uint64_t get_cellid(const std::string &line) {
   return id;
 }
 
-double get_longitude(const std::string &line) {
+uint64_t get_longtitude(const std::string &line) {
   uint64_t id;
   double lat, lon;
   std::stringstream strin(line);
           strin >> id >> lon >> lat;
-  return lon;
+  return (lon*90+lat) * 1e7;
 }
 
 double get_lat(const std::string &line) {
@@ -66,7 +67,7 @@ uint64_t get_longlat(const std::string &line) {
 template<typename T>
 std::vector<T>read_data_from_osm(const std::string load_file, 
     T (*get_data)(const std::string &) = []{ return static_cast<T>(0);},
-    const std::string output = "/home/sbh/generate_random_osm_longlat.dat")
+    const std::string output = "/home/sbh/generate_random_osm_longtitudes.dat")
 {
   std::vector<T> data;
   std::set<T> unique_keys;
@@ -139,17 +140,31 @@ std::vector<uint64_t> generate_random_ycsb(size_t op_num)
 std::vector<uint64_t> generate_uniform_random(size_t op_num)
 {
   std::vector<uint64_t> data; 
+  std::set<uint64_t> unique_keys;
   data.resize(op_num);
   std::cout << "Use: " << __FUNCTION__ << std::endl;
   const uint64_t ns = util::timing([&] { 
-    Random rnd(0, UINT64_MAX);
-    for (size_t i = 0; i < op_num; ++i)
-      data[i] = rnd.Next();
+    Random rnd(0, 10*UINT32_MAX);
+    for (size_t i = 0; i < op_num; ++i){
+      //data[i] = rnd.Next();
+      unique_keys.insert(rnd.Next());
+    }
   });
+  const std::string output = "/home/wjy/generate_random_10uint32.dat";
+  data.assign(unique_keys.begin(), unique_keys.end());
+  random_shuffle(data.begin(),data.end());
+  std::ofstream out(output, std::ios::binary);
+  uint64_t size = data.size();
+  out.write(reinterpret_cast<char*>(&size), sizeof(uint64_t));
+  out.write(reinterpret_cast<char*>(data.data()), data.size() * sizeof(uint64_t));
+  out.close(); 
   const uint64_t ms = ns/1e6;
   std::cout << "generate " << data.size() << " values in "
             << ms << " ms (" << static_cast<double>(data.size())/1000/ms
             << " M values/s)" << std::endl;  
+  for(int i = 0;i<20;i++){
+    std::cout << data[i] << endl;
+  }
   return data;
 }
 
@@ -227,19 +242,19 @@ int main(int argc, char *argv[]) {
     data_base = read_data_from_osm<uint64_t>(load_file, get_cellid);
     break;
   case -1:
-    data_base = read_data_from_osm<uint64_t>(load_file, get_longlat);
+    data_base = read_data_from_osm<uint64_t>(load_file, get_longtitude);
     break;
   case 0:
-    data_base = generate_uniform_random(LOAD_SIZE + PUT_SIZE * 8);
+    data_base = generate_uniform_random(LOAD_SIZE + PUT_SIZE*10);
     break;
   case 1:
     data_base = generate_random_ycsb(LOAD_SIZE + PUT_SIZE * 8);
     break;
   case 2:
-    data_base = load_data_from_osm<uint64_t>("/home/sbh/generate_random_osm_cellid.dat");;
+    data_base = load_data_from_osm<uint64_t>("/home/wjy/generate_random_osm_longtitudes.dat");
     break;
   case 3:
-    data_base = load_data_from_osm<uint64_t>("/home/sbh/generate_random_osm_longlat.dat");;
+    data_base = load_data_from_osm<uint64_t>("/home/wjy/generate_random_osm_longlat.dat");
     break;
   default:
     data_base = generate_uniform_random(LOAD_SIZE + PUT_SIZE * 8);
@@ -260,6 +275,8 @@ int main(int argc, char *argv[]) {
     db = new StxDB();
   } else if(dbName == "letree") {
     db = new LetDB();
+  } else if(dbName == "lipp") {
+    db = new LIPPDb();
   } else {
     db = new ComboTreeDb();
   }
@@ -269,24 +286,25 @@ int main(int argc, char *argv[]) {
   uint64_t load_pos = 0; 
   std::cout << "Start run ...." << std::endl;
   {
-    int init_size = 1e3;
-    std::mt19937_64 gen_payload(std::random_device{}());
-    auto values = new std::pair<uint64_t, uint64_t>[init_size];
-    for (int i = 0; i < init_size; i++) {
-      values[i].first = data_base[i];
-      values[i].second = static_cast<uint64_t>(gen_payload());
-    }
-    std::sort(values, values + init_size,
-              [](auto const& a, auto const& b) { return a.first < b.first; });
-    db->Bulk_load(values, init_size);
-    load_pos = init_size;
+    // int init_size = 1e3;
+    // std::mt19937_64 gen_payload(std::random_device{}());
+    // auto values = new std::pair<uint64_t, uint64_t>[init_size];
+    // for (int i = 0; i < init_size; i++) {
+    //   values[i].first = data_base[i];
+    //   values[i].second = static_cast<uint64_t>(gen_payload());
+    // }
+    // std::sort(values, values + init_size,
+    //           [](auto const& a, auto const& b) { return a.first < b.first; });
+    // db->Bulk_load(values, init_size);
+    // load_pos = init_size;
   }
   {
      // Load
+    std::cout << "Start loading ...." << std::endl;
     timer.Record("start");
     for(load_pos; load_pos < LOAD_SIZE; load_pos ++) {
       db->Put(data_base[load_pos], (uint64_t)data_base[load_pos]);
-      if((load_pos + 1) % 10000 == 0) std::cerr << "Operate: " << load_pos + 1 << '\r';  
+      if((load_pos + 1) % 10000000 == 0) std::cerr << "Operate: " << load_pos + 1 << '\r';  
     }
     std::cerr << std::endl;
 
@@ -301,9 +319,12 @@ int main(int argc, char *argv[]) {
   // us_times = timer.Microsecond("stop", "start");
   // timer.Record("start");
   // Different insert_ration
-  std::vector<float> insert_ratios = {0, 0.10, 0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90, 1.0}; 
+  std::vector<float> insert_ratios = {0};
+  //ABCDE
+  //std::vector<float> insert_ratios = {0, 0.05, 0.50, 0.95, 1.0};
   float insert_ratio = 0;
   util::FastRandom ranny(18);
+  std::cout << "Start testing ...." << std::endl;
   for(int i = 0; i < insert_ratios.size(); i++)
   {
     uint64_t value = 0;
@@ -317,7 +338,7 @@ int main(int argc, char *argv[]) {
         db->Put(data_base[load_pos], (uint64_t)data_base[load_pos]);
         load_pos ++;
       } else {
-        uint32_t op_seq = ranny.RandUint32(0, load_pos - 1);
+        uint64_t op_seq = ranny.RandUint32(0, load_pos - 1);
         db->Get(data_base[op_seq], value);
       }
     }

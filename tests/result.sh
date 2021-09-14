@@ -39,4 +39,4 @@ if [ $# -ge 1 ]; then
 fi
 
 logfile="scalability-$dbname-longlat-400m.txt"
-scalability_get_read_iops $logfile $dbname
+scalability_get_write_iops $logfile $dbname
