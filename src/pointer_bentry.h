@@ -848,52 +848,60 @@ namespace combotree
                 records[0].key = new_key;
                 records[0].ptr = value;
                 records[1].ptr = 0;
+#ifndef USE_MEM
                 fence();
+#endif
                 return status::OK;
             }
             {
-                while (last_pos != entries)
+                if (last_pos >= max_entries - 1 && last_pos != entries)
                 {
-                    for (int i = 0; i < last_pos; i++)
+                    for (int i = last_pos - 1; i >= 0; i--)
                     {
                         if (key(i) == 0)
                         {
-                            if (i == last_pos)
+                            for (; i < last_pos; i++)
                             {
-                                break;
+                                records[i].ptr = records[i + 1].ptr;
+                                records[i].key = records[i + 1].key;
+#ifndef USE_MEM
+                                if (!flush)
+                                    continue;
+                                uint64_t records_ptr = (uint64_t)(&records[i]);
+                                int remainder = records_ptr % CACHE_LINE_SIZE;
+                                bool do_flush = (remainder == 0) ||
+                                                ((((int)(remainder + sizeof(entry)) / CACHE_LINE_SIZE) == 1) && ((remainder + sizeof(entry)) % CACHE_LINE_SIZE) != 0);
+                                if (do_flush)
+                                {
+                                    clflush((char *)records_ptr);
+                                }
+#endif
                             }
-                            records[i].ptr == records[i + 1].ptr;
-                            records[i].key == records[i + 1].key;
-                            if (!flush)
-                                continue;
-                            uint64_t records_ptr = (uint64_t)(&records[i]);
-                            int remainder = records_ptr % CACHE_LINE_SIZE;
-                            bool do_flush = (remainder == 0) ||
-                                            ((((int)(remainder + sizeof(entry)) / CACHE_LINE_SIZE) == 1) && ((remainder + sizeof(entry)) % CACHE_LINE_SIZE) != 0);
-                            if (do_flush)
-                            {
-                                clflush((char *)records_ptr);
-                            }
+                            break;
                         }
                     }
                     last_pos--;
                 }
-                int i = entries, inserted = 0;
-                if (last_pos < max_entries - 1)
-                {
-                    records[i + 1].ptr = records[i].ptr;
-                    if ((uint64_t)pvalue(i + 1) % CACHE_LINE_SIZE == 0)
-                    {
-                        if (flush)
-                            clflush(pvalue(i + 1));
-                    }
-                }
-                for (i = entries - 1; i >= 0; i--)
+
+                int inserted = 0;
+                //                 if (entries < max_entries - 1)
+                //                 {
+                //                     records[entries + 1].ptr = records[i].ptr;
+                // #ifndef USE_MEM
+                //                     if ((uint64_t)pvalue(i + 1) % CACHE_LINE_SIZE == 0)
+                //                     {
+                //                         if (flush)
+                //                             clflush(pvalue(i + 1));
+                //                     }
+                // #endif
+                //                 }
+                for (int i = last_pos - 1; i >= 0; i--)
                 {
                     if (new_key < records[i].key)
                     {
                         records[i + 1].ptr = records[i].ptr;
                         records[i + 1].key = records[i].key;
+#ifndef USE_MEM
                         if (!flush)
                             continue;
                         uint64_t records_ptr = (uint64_t)(&records[i + 1]);
@@ -904,15 +912,18 @@ namespace combotree
                         {
                             clflush((char *)records_ptr);
                         }
+#endif
                     }
                     else
                     {
                         records[i + 1].ptr = records[i].ptr;
                         records[i + 1].key = new_key;
                         records[i + 1].ptr = value;
+#ifndef USE_MEM
                         if (flush)
                             clflush((char *)&records[i + 1]);
                         inserted = 1;
+#endif
                         break;
                     }
                 }
@@ -920,17 +931,21 @@ namespace combotree
                 {
                     records[0].key = new_key;
                     records[0].ptr = value;
+#ifndef USE_MEM
                     if (flush)
                         clflush((char *)&records[0]);
+#endif
                 }
             }
+#ifndef USE_MEM
             fence();
+#endif
             return status::OK;
         }
 #ifdef USE_DELETE_0
         inline bool remove_key(uint64_t key, uint64_t *value)
         {
-            for (int i = 0; records[i].ptr != 0; ++i)
+            for (int i = 0; records[i].key != 0 && i < last_pos; ++i)
             {
                 if (records[i].key == key)
                 {
@@ -990,22 +1005,24 @@ namespace combotree
         status SetValue(int pos, uint64_t value)
         {
             memcpy(pvalue(pos), &value, value_size);
+#ifndef USE_MEM
             clflush(pvalue(pos));
             fence();
+#endif
             return status::OK;
         }
 
     public:
         class Iter;
 
-        SortBuncket(uint64_t key, int prefix_len) : entries(0), next_bucket(nullptr)
+        SortBuncket(uint64_t key, int prefix_len) : entries(0), last_pos(0), next_bucket(nullptr)
         {
             next_bucket = nullptr;
             max_entries = std::min(buf_size / (value_size + key_size), max_entry_count);
             // std::cout << "Max Entry size is:" <<  max_entries << std::endl;
         }
 
-        explicit SortBuncket(uint64_t key, uint64_t value, int prefix_len) : entries(0), next_bucket(nullptr)
+        explicit SortBuncket(uint64_t key, uint64_t value, int prefix_len) : entries(0), last_pos(0), next_bucket(nullptr)
         {
             next_bucket = nullptr;
             max_entries = std::min(buf_size / (value_size + key_size), max_entry_count);
@@ -1027,6 +1044,7 @@ namespace combotree
                 memcpy(pkey(target_idx), &keys[target_idx], key_size);
                 memcpy(pvalue(target_idx), &values[count - target_idx - 1], value_size);
                 entries++;
+                last_pos++;
             }
             NVM::Mem_persist(this, sizeof(*this));
             return status::OK;
@@ -1064,14 +1082,19 @@ namespace combotree
             NVM::Mem_persist(next, sizeof(*next));
 
             records[m].ptr = 0;
+#ifndef USE_MEM
             clflush(&records[last_pos / 2].ptr);
-
+#endif
             this->next_bucket = next;
+#ifndef USE_MEM
             fence();
+#endif
             entries = entries - next->entries;
             last_pos = m;
+#ifndef USE_MEM
             clflush(&header);
             fence();
+#endif
             return status::OK;
         }
 
@@ -1150,7 +1173,9 @@ namespace combotree
             }
             entries++;
             last_pos++;
+#ifndef USE_MEM
             clflush(&header);
+#endif
             // Common::timers["CLevel_times"].end();
             return status::OK;
         }
@@ -1183,10 +1208,11 @@ namespace combotree
             return status::OK;
         }
 
-        status Scan(CLevel::MemControl *mem, uint64_t start_key, int & len,std::vector<std::pair<uint64_t,uint64_t>> &results) const
+        status Scan(CLevel::MemControl *mem, uint64_t start_key, int &len, std::vector<std::pair<uint64_t, uint64_t>> &results) const
         {
             int pos = 0;
-            if(start_key != 0){
+            if (start_key != 0)
+            {
                 bool find = false;
                 // int pos = Find(key, find);
                 int pos = LinearFind(start_key, find);
@@ -1197,34 +1223,43 @@ namespace combotree
                     return status::NoExist;
                 }
             }
-            for(;pos < this->last_pos && len > 0; ++pos){
-                if ( this->key(pos) != 0){
-                    results.push_back({this->key(pos),this->value(pos)});
+            for (; pos < this->last_pos && len > 0; ++pos)
+            {
+                if (this->key(pos) != 0)
+                {
+                    results.push_back({this->key(pos), this->value(pos)});
                     --len;
                 }
             }
-            if(this->next_bucket == nullptr){
-                if(len > 0){
+            if (this->next_bucket == nullptr)
+            {
+                if (len > 0)
+                {
                     return status::Failed;
                 }
                 return status::OK;
             }
-            SortBuncket * next_ = this->next_bucket;
-            while(len > 0){
+            SortBuncket *next_ = this->next_bucket;
+            while (len > 0)
+            {
                 int i = 0;
-                for(;i<next_->last_pos && len > 0;i++){
-                    if(next_->key(i) != 0){
-                        results.push_back({next_->key(i),next_->value(i)});
+                for (; i < next_->last_pos && len > 0; i++)
+                {
+                    if (next_->key(i) != 0)
+                    {
+                        results.push_back({next_->key(i), next_->value(i)});
                         --len;
                     }
                 }
-                if(next_->next_bucket == nullptr){
+                if (next_->next_bucket == nullptr)
+                {
                     break;
                 }
                 next_ = next_->next_bucket;
             }
             //cout << "in entry:" << len << endl;
-            if(len > 0){
+            if (len > 0)
+            {
                 return status::Failed;
             }
             return status::OK;
@@ -1239,8 +1274,10 @@ namespace combotree
             }
             fence();
             entries--;
+#ifndef USE_MEM
             clflush(&header);
             fence();
+#endif
             return status::OK;
         }
 
@@ -1279,8 +1316,8 @@ namespace combotree
             uint32_t header;
             struct
             {
-                uint16_t last_pos : 8;
-                uint16_t entries : 8;
+                uint16_t last_pos : 8;    //最后一个位置
+                uint16_t entries : 8;     //键值对个数
                 uint16_t max_entries : 8; // MSB
             };
         };
@@ -1328,8 +1365,9 @@ namespace combotree
             ALWAYS_INLINE bool next()
             {
                 idx_++;
-                while(cur_->key(idx_) == 0 && idx_ < cur_->last_pos){
-                    idx_ ++;
+                while (cur_->key(idx_) == 0 && idx_ < cur_->last_pos)
+                {
+                    idx_++;
                 }
                 if (idx_ >= cur_->last_pos)
                 {
@@ -1845,7 +1883,9 @@ namespace combotree
             entrys[0].buf.entries = 1;
             entrys[0].entry_key = key;
             entrys[0].pointer.Setup(mem, key, prefix_len);
+#ifndef USE_MEM
             clflush((void *)&entrys[0]);
+#endif
             //   clevel.Setup(mem, buf.suffix_bytes);
             // std::cout << "Entry key: " << key << std::endl;
         }
@@ -1859,7 +1899,9 @@ namespace combotree
             entrys[0].entry_key = key;
             entrys[0].pointer.Setup(mem, key, prefix_len);
             (entrys[0].pointer.pointer(mem->BaseAddr()))->Put(mem, key, value);
+#ifndef USE_MEM
             clflush(&entrys[0]);
+#endif
             // std::cout << "Entry key: " << key << std::endl;
         }
 
@@ -1868,7 +1910,9 @@ namespace combotree
             memset(this, 0, sizeof(PointerBEntry));
             entrys[0] = *entry;
             entrys[0].buf.entries = 1;
+#ifndef USE_MEM
             clflush(&entrys[0]);
+#endif
             // std::cout << "Entry key: " << key << std::endl;
         }
 
@@ -1960,20 +2004,24 @@ namespace combotree
             return ret == status::OK;
         }
 
-        bool Scan(CLevel::MemControl *mem,uint64_t start_key,int &len,std::vector<std::pair<uint64_t,uint64_t>> &results) const{
+        bool Scan(CLevel::MemControl *mem, uint64_t start_key, int &len, std::vector<std::pair<uint64_t, uint64_t>> &results) const
+        {
             int pos = 0;
-            if(start_key == 0){
+            if (start_key == 0)
+            {
                 int pos = 0;
-                auto ret = (entrys[pos].pointer.pointer(mem->BaseAddr()))->Scan(mem, 0, len,results);
+                auto ret = (entrys[pos].pointer.pointer(mem->BaseAddr()))->Scan(mem, 0, len, results);
                 return ret;
-            }else{
+            }
+            else
+            {
                 int pos = Find_pos(start_key);
             }
             if (unlikely(pos >= entry_count || !entrys[pos].IsValid()))
             {
                 return false;
             }
-            auto ret = (entrys[pos].pointer.pointer(mem->BaseAddr()))->Scan(mem, start_key, len,results);
+            auto ret = (entrys[pos].pointer.pointer(mem->BaseAddr()))->Scan(mem, start_key, len, results);
             return ret;
         }
 

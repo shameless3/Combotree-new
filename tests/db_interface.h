@@ -331,7 +331,12 @@ namespace dbInter
     }
     void Init()
     {
+      NVM::data_init();
       lipp_ = new lipp_t();
+    }
+    void Info()
+    {
+      NVM::show_stat();
     }
     int Put(uint64_t key, uint64_t value)
     {
@@ -352,6 +357,10 @@ namespace dbInter
     }
     int Scan(uint64_t start_key, int len, std::vector<std::pair<uint64_t, uint64_t>> &results){
       return 1;
+    }
+    void PrintStatic()
+    {
+      NVM::show_stat();
     }
     private:
     lipp_t *lipp_;

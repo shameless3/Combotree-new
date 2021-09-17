@@ -14,10 +14,10 @@ function Run() {
     # numactl --cpubind=1 --membind=1 \
     numactl --cpubind=1 --membind=1 ${BUILDDIR}/microbench --dbname ${dbname} --load-size ${loadnum} \
     --put-size ${opnum} --get-size ${opnum} --workload ${WorkLoad} \
-    --loadstype 0 -t $thread | tee -a microbench-${dbname}-${Loadname}.txt
+    --loadstype 4 -t $thread | tee -a microbench-${dbname}-${Loadname}.txt
 
     echo "${BUILDDIR}/microbench --dbname ${dbname} --load-size ${loadnum} "\
-    "--put-size ${opnum} --get-size ${opnum} --workload ${WorkLoad} --loadstype 0 -t $thread"
+    "--put-size ${opnum} --get-size ${opnum} --workload ${WorkLoad} --loadstype 4 -t $thread"
 }
 
 # DBName: combotree fastfair pgm xindex alex
@@ -60,4 +60,8 @@ function main() {
 }
 # main fastfair 400000000 10000000 100000 1
 # main xindex 400000000 10000000 100000 1
-main lipp 400000000 10000000 100000 1
+
+# main lipp 400000000 10000000 100000 1
+main alex 400000000 10000000 100000 1
+# main letree 400000000 10000000 100000 1
+

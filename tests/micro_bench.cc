@@ -134,30 +134,34 @@ std::vector<uint64_t> generate_random_ycsb(size_t op_num)
   std::cout << "generate " << data.size() << " values in "
             << ms << " ms (" << static_cast<double>(data.size())/1000/ms
             << " M values/s)" << std::endl;   
+  for(int i = 0;i<20;i++){
+    std::cout << data[i] << endl;
+  }
   return data;
 }
 
 std::vector<uint64_t> generate_uniform_random(size_t op_num)
 {
   std::vector<uint64_t> data; 
-  std::set<uint64_t> unique_keys;
+  //std::set<uint64_t> unique_keys;
   data.resize(op_num);
   std::cout << "Use: " << __FUNCTION__ << std::endl;
   const uint64_t ns = util::timing([&] { 
-    Random rnd(0, 10*UINT32_MAX);
+    Random rnd(0, UINT64_MAX);
     for (size_t i = 0; i < op_num; ++i){
-      //data[i] = rnd.Next();
-      unique_keys.insert(rnd.Next());
+      data[i] = rnd.Next();
+      //unique_keys.insert(rnd.Next());
     }
   });
-  const std::string output = "/home/wjy/generate_random_10uint32.dat";
-  data.assign(unique_keys.begin(), unique_keys.end());
-  random_shuffle(data.begin(),data.end());
-  std::ofstream out(output, std::ios::binary);
-  uint64_t size = data.size();
-  out.write(reinterpret_cast<char*>(&size), sizeof(uint64_t));
-  out.write(reinterpret_cast<char*>(data.data()), data.size() * sizeof(uint64_t));
-  out.close(); 
+  
+  // const std::string output = "/home/wjy/generate_random_10uint32.dat";
+  // data.assign(unique_keys.begin(), unique_keys.end());
+  // random_shuffle(data.begin(),data.end());
+  // std::ofstream out(output, std::ios::binary);
+  // uint64_t size = data.size();
+  // out.write(reinterpret_cast<char*>(&size), sizeof(uint64_t));
+  // out.write(reinterpret_cast<char*>(data.data()), data.size() * sizeof(uint64_t));
+  // out.close(); 
   const uint64_t ms = ns/1e6;
   std::cout << "generate " << data.size() << " values in "
             << ms << " ms (" << static_cast<double>(data.size())/1000/ms
@@ -256,6 +260,9 @@ int main(int argc, char *argv[]) {
   case 3:
     data_base = load_data_from_osm<uint64_t>("/home/wjy/generate_random_osm_longlat.dat");
     break;
+  case 4:
+    data_base = load_data_from_osm<uint64_t>("/home/wjy/generate_random_10uint32.dat");
+    break;
   default:
     data_base = generate_uniform_random(LOAD_SIZE + PUT_SIZE * 8);
     break;
@@ -286,17 +293,17 @@ int main(int argc, char *argv[]) {
   uint64_t load_pos = 0; 
   std::cout << "Start run ...." << std::endl;
   {
-    // int init_size = 1e3;
-    // std::mt19937_64 gen_payload(std::random_device{}());
-    // auto values = new std::pair<uint64_t, uint64_t>[init_size];
-    // for (int i = 0; i < init_size; i++) {
-    //   values[i].first = data_base[i];
-    //   values[i].second = static_cast<uint64_t>(gen_payload());
-    // }
-    // std::sort(values, values + init_size,
-    //           [](auto const& a, auto const& b) { return a.first < b.first; });
-    // db->Bulk_load(values, init_size);
-    // load_pos = init_size;
+    int init_size = 1e3;
+    std::mt19937_64 gen_payload(std::random_device{}());
+    auto values = new std::pair<uint64_t, uint64_t>[init_size];
+    for (int i = 0; i < init_size; i++) {
+      values[i].first = data_base[i];
+      values[i].second = static_cast<uint64_t>(gen_payload());
+    }
+    std::sort(values, values + init_size,
+              [](auto const& a, auto const& b) { return a.first < b.first; });
+    db->Bulk_load(values, init_size);
+    load_pos = init_size;
   }
   {
      // Load
@@ -319,7 +326,7 @@ int main(int argc, char *argv[]) {
   // us_times = timer.Microsecond("stop", "start");
   // timer.Record("start");
   // Different insert_ration
-  std::vector<float> insert_ratios = {0};
+  std::vector<float> insert_ratios = {0,1.0};
   //ABCDE
   //std::vector<float> insert_ratios = {0, 0.05, 0.50, 0.95, 1.0};
   float insert_ratio = 0;
