@@ -130,12 +130,16 @@ static std::vector<T> load_data(const std::string& filename,
       exit(EXIT_FAILURE);
     }
     // Read size.
-    uint64_t size;
-    in.read(reinterpret_cast<char*>(&size), sizeof(uint64_t));
-    std::cerr << "Data size: " << size << std::endl;
+    uint64_t size = 0;
+    if (filename == "/home/wjy/lognormal-190M.bin.data"){
+      std::cout << "lognormal data size 190M" <<endl;
+      size = 190000000; 
+    }else{
+      in.read(reinterpret_cast<char*>(&size), sizeof(uint64_t));
+      std::cerr << "Data size: " << size << std::endl;
+    }
     size = std::min(size, max_size);
     data.resize(size);
-
     // Read values.
     in.read(reinterpret_cast<char*>(data.data()), size*sizeof(T));
     in.close();

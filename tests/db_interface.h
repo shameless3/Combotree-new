@@ -15,7 +15,8 @@
 
 //#include "mem/pgm/pgm_index_dynamic.hpp"
 #include "learnindex/pgm_index_dynamic.hpp"
-#include "mem/xindex/xindex_impl.h"
+//#include "mem/xindex/xindex_impl.h"
+#include "xindex/xindex_impl.h"
 #include "mem/alex/alex.h"
 #else
 #include "learnindex/pgm_index_dynamic.hpp"
@@ -407,6 +408,7 @@ namespace dbInter
     void Info()
     {
       NVM::show_stat();
+      xindex_->show_info();
     }
     int Put(uint64_t key, uint64_t value)
     {

@@ -11,12 +11,12 @@ function Run() {
         --put-size ${opnum} --get-size ${opnum} --delete-size ${opnum}\
         --scan-test-size ${scansize} -s 10 -s 100 -s 1000 -s 10000\
         --sort-scan 10 --sort-scan 100 --sort-scan 1000 --sort-scan 10000\
-        -t $thread | tee multi-${dbname}-${thread}.txt
+        -t $thread --use-data-file | tee multi-${dbname}-${thread}.txt
 }
 
 # DBName: combotree fastfair pgm xindex alex
 function run_all() {
-    dbs="letree fastfair pgm alex xindex"
+    dbs="lipp letree fastfair pgm alex xindex"
     for dbname in $dbs; do
         echo "Run: " $dbname
         Run $dbname $1 $2 $3 1
@@ -54,10 +54,12 @@ function main() {
 }
 #main all 400000000 10000000 40000000 1
 #main alex 400000000 10000000 40000000 1
-#main pgm 400000000 10000000 40000000 1
+# main pgm 400000000 10000000 40000000 1
 #main letree 400000000 10000000 40000000 1
 #main alex 400000000 10000000 40000000 1
-#main pgm 400000000 10000000 40000000 1
+# main xindex 400000000 10000000 40000000 1
 #main letree 400000000 10000000 40000000 1
-main letree 400000000 10000000 40000000 1
+#main letree 400000000 10000000 40000000 1
 #main letree 40000000 10000 4000000 1
+#main lipp 400000000 10000000 40000000 1
+main all 180000000 10000000 40000000 1

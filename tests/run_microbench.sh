@@ -1,7 +1,7 @@
 #!/bin/bash
 BUILDDIR=$(dirname "$0")/../build/
 WorkLoad="/home/wjy/asia-latest.csv"
-Loadname="longlat-insertio"
+Loadname="longlat-insert-ratio"
 function Run() {
     dbname=$1
     loadnum=$2
@@ -14,15 +14,26 @@ function Run() {
     # numactl --cpubind=1 --membind=1 \
     numactl --cpubind=1 --membind=1 ${BUILDDIR}/microbench --dbname ${dbname} --load-size ${loadnum} \
     --put-size ${opnum} --get-size ${opnum} --workload ${WorkLoad} \
-    --loadstype 4 -t $thread | tee -a microbench-${dbname}-${Loadname}.txt
+    --loadstype 3 -t $thread | tee -a microbench-${dbname}-${Loadname}.txt
 
     echo "${BUILDDIR}/microbench --dbname ${dbname} --load-size ${loadnum} "\
-    "--put-size ${opnum} --get-size ${opnum} --workload ${WorkLoad} --loadstype 4 -t $thread"
+    "--put-size ${opnum} --get-size ${opnum} --workload ${WorkLoad} --loadstype 3 -t $thread"
+    
+    # Loadname="ycsb-insert-ratio"
+
+    # numactl --cpubind=1 --membind=1 ${BUILDDIR}/microbench --dbname ${dbname} --load-size ${loadnum} \
+    # --put-size ${opnum} --get-size ${opnum} --workload ${WorkLoad} \
+    # --loadstype 6 -t $thread | tee -a microbench-${dbname}-${Loadname}.txt
+
+    # echo "${BUILDDIR}/microbench --dbname ${dbname} --load-size ${loadnum} "\
+    # "--put-size ${opnum} --get-size ${opnum} --workload ${WorkLoad} --loadstype 6 -t $thread"
+
+    # Loadname="longlat-insert-ratio"
 }
 
 # DBName: combotree fastfair pgm xindex alex
 function run_all() {
-    dbs="letree fastfair pgm alex xindex"
+    dbs="letree lipp fastfair pgm alex xindex"
     for dbname in $dbs; do
         echo "Run: " $dbname
         Run $dbname $1 $2 $3 1
@@ -59,9 +70,9 @@ function main() {
     fi 
 }
 # main fastfair 400000000 10000000 100000 1
-# main xindex 400000000 10000000 100000 1
-
-# main lipp 400000000 10000000 100000 1
+# main xindex 200000000 10000000 100000 1
+# main pgm 400000000 10000000 100000 1
+# main lipp 180000000 10000000 100000 1
 main alex 400000000 10000000 100000 1
 # main letree 400000000 10000000 100000 1
-
+# main all 400000000 10000000 100000 1

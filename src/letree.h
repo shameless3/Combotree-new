@@ -15,8 +15,6 @@
 namespace combotree
 {
 
-//#define USE_DELETE_0
-
 static const size_t max_entry_count = 1024;
 static const size_t min_entry_count = 64;
 typedef combotree::PointerBEntry bentry_t;
