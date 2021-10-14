@@ -10,6 +10,7 @@
 #include "../src/combotree_config.h"
 #include "fast-fair/btree.h"
 #include "fast-fair/btree_old.h"
+#include "nvm_alloc.h"
 
 #ifdef USE_MEM
 
@@ -17,7 +18,7 @@
 #include "learnindex/pgm_index_dynamic.hpp"
 //#include "mem/xindex/xindex_impl.h"
 #include "xindex/xindex_impl.h"
-#include "mem/alex/alex.h"
+#include "alex/alex.h"
 #else
 #include "learnindex/pgm_index_dynamic.hpp"
 #include "learnindex/rmi.h"
@@ -120,10 +121,12 @@ namespace dbInter
     {
       NVM::data_init();
       tree_ = new btree();
+      NVM::pmem_size = 0;
     }
 
     void Info()
     {
+      std::cout << "NVM WRITE : " << NVM::pmem_size << std::endl;
       NVM::show_stat();
     }
 
@@ -259,6 +262,7 @@ namespace dbInter
     {
       NVM::data_init();
       pgm_ = new DynamicPGM();
+      NVM::pmem_size = 0;
     }
 
     void Bulk_load(const std::pair<uint64_t, uint64_t> data[], int size)
@@ -271,6 +275,7 @@ namespace dbInter
 
     void Info()
     {
+      std::cout << "NVM WRITE : " << NVM::pmem_size << std::endl;
       NVM::show_stat();
     }
 
@@ -334,9 +339,11 @@ namespace dbInter
     {
       NVM::data_init();
       lipp_ = new lipp_t();
+      NVM::pmem_size = 0;
     }
     void Info()
     {
+      std::cout << "NVM WRITE : " << NVM::pmem_size << std::endl;
       NVM::show_stat();
     }
     int Put(uint64_t key, uint64_t value)
@@ -387,6 +394,7 @@ namespace dbInter
     {
       NVM::data_init();
       prepare_xindex(init_num, work_num, bg_num);
+      NVM::pmem_size = 0;
     }
 
     void Bulk_load(const std::pair<uint64_t, uint64_t> data[], int size)
@@ -407,8 +415,9 @@ namespace dbInter
 
     void Info()
     {
+      std::cout << "NVM WRITE : " << NVM::pmem_size << std::endl;
       NVM::show_stat();
-      xindex_->show_info();
+      // xindex_->show_info();
     }
     int Put(uint64_t key, uint64_t value)
     {
@@ -554,6 +563,7 @@ namespace dbInter
     {
       NVM::data_init();
       alex_ = new alex_t();
+      NVM::pmem_size = 0;
     }
 
     void Bulk_load(const std::pair<uint64_t, uint64_t> data[], int size)
@@ -563,6 +573,7 @@ namespace dbInter
 
     void Info()
     {
+      std::cout << "NVM WRITE : " << NVM::pmem_size << std::endl;
       NVM::show_stat();
     }
 
@@ -630,10 +641,12 @@ namespace dbInter
     {
       NVM::data_init();
       tree_ = new btree_t();
+      NVM::pmem_size = 0;
     }
 
     void Info()
     {
+      std::cout << "NVM WRITE : " << NVM::pmem_size << std::endl;
       NVM::show_stat();
     }
 
@@ -715,10 +728,12 @@ namespace dbInter
       NVM::data_init();
       let_ = new combotree::letree();
       let_->Init();
+      NVM::pmem_size = 0;
     }
 
     void Info()
     {
+      std::cout << "NVM WRITE : " << NVM::pmem_size << std::endl;
       NVM::show_stat();
       let_->Info();
     }

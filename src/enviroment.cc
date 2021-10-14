@@ -14,6 +14,7 @@ namespace NVM
 Alloc *common_alloc = nullptr;
 Alloc *data_alloc = nullptr;
 Stat const_stat;
+uint64_t  pmem_size = 0;
 
 #ifdef SERVER
 const size_t common_alloc_size = 4 *1024 * 1024 * 1024UL;

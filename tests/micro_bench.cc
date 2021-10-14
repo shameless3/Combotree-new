@@ -311,7 +311,7 @@ int main(int argc, char *argv[])
     data_base = load_data_from_osm<uint64_t>("/home/wjy/generate_random_10uint32.dat");
     break;
   case 5:
-    data_base = load_data_from_osm<uint64_t>("/home/wjy/lognormal-190M.bin.data");
+    data_base = load_data_from_osm<uint64_t>("/home/wjy/lognormal.dat");
     break;
   case 6:
     data_base = load_data_from_osm<uint64_t>("/home/wjy/generate_random_ycsb.dat");
@@ -376,14 +376,32 @@ int main(int argc, char *argv[])
     load_pos = init_size;
   }
   {
+    // //for alex lognormal
+    // std::cout << "Start loading ...." << std::endl;
+    // int init_size = 15*1e7;
+    // auto values = new std::pair<uint64_t, uint64_t>[init_size];
+    // for (int i = 0; i < init_size; i++)
+    // {
+    //   values[i].first = data_base[i];
+    //   values[i].second = data_base[i];
+    // }
+    // std::sort(values, values + init_size,
+    //           [](auto const &a, auto const &b)
+    //           { return a.first < b.first; });
+    // db->Bulk_load(values,init_size);
+    // load_pos = init_size;
+  }
+  {
     // Load
     std::cout << "Start loading ...." << std::endl;
     timer.Record("start");
     for (load_pos; load_pos < LOAD_SIZE; load_pos++)
     {
       db->Put(data_base[load_pos], (uint64_t)data_base[load_pos]);
-      if ((load_pos + 1) % 10000000 == 0)
-        std::cerr << "Operate: " << load_pos + 1 << '\r';
+      if ((load_pos + 1) % 10000000 == 0){
+        std::cerr << "Operate: " << load_pos + 1 << std::endl;
+        db->Info();
+      }
     }
     std::cerr << std::endl;
 
@@ -399,8 +417,8 @@ int main(int argc, char *argv[])
   // us_times = timer.Microsecond("stop", "start");
   // timer.Record("start");
   // Different insert_ration
-  // std::vector<float> insert_ratios = {0, 0.3, 0.7, 1.0};
-  std::vector<float> insert_ratios = {0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0};
+  std::vector<float> insert_ratios = {1};
+  //std::vector<float> insert_ratios = {0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0};
   float insert_ratio = 0;
   util::FastRandom ranny(18);
   std::cout << "Start testing ...." << std::endl;
@@ -414,6 +432,9 @@ int main(int argc, char *argv[])
     timer.Record("start");
     for (uint64_t i = 0; i < GET_SIZE; i++)
     {
+      if(i%1000000 == 0){
+        std::cout << "i = " << i << std::endl;
+      }
       if (ranny.ScaleFactor() < insert_ratio)
       {
         db->Put(data_base[load_pos], (uint64_t)data_base[load_pos]);
@@ -421,8 +442,11 @@ int main(int argc, char *argv[])
       }
       else
       {
+        std::cout << "i1 = " << i << std::endl;
         uint64_t op_seq = ranny.RandUint32(0, load_pos - 1);
+        std::cout << "i2 = " << i << std::endl;
         db->Get(data_base[op_seq], value);
+        std::cout << "i3 = " << i << std::endl;
       }
     }
     timer.Record("stop");

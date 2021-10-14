@@ -20,13 +20,19 @@ function scalability_get_read_iops()
     cat $1 | grep "Metic-Read"  | grep "iops" | awk '{print $9/1e3}'
 }
 
+function scalability_get_read_iops()
+{
+    echo $1 $2
+    cat $1 | grep "Metic-Read"  | grep "iops" | awk '{print $9/1e3}'
+}
+
 dbname=letree
 workload=longlat-insertio
 logfile="microbench-$dbname-$workload.txt"
 
 # microbench_get_iops $logfile $dbname
 
-dbs="fastfair alex pgm xindex letree"
+dbs="fastfair pgm xindex letree"
 
 # for dbname in $dbs; do
 #     echo "$dbname"

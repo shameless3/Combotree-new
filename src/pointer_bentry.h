@@ -911,6 +911,7 @@ namespace combotree
                         if (do_flush)
                         {
                             clflush((char *)records_ptr);
+                            NVM::pmem_size += CACHE_LINE_SIZE;
                         }
 #endif
                     }
@@ -921,7 +922,13 @@ namespace combotree
                         records[i + 1].ptr = value;
 #ifndef USE_MEM
                         if (flush)
+                        {
                             clflush((char *)&records[i + 1]);
+#ifdef TEST_PMEM_SIZE
+                            NVM::pmem_size += CACHE_LINE_SIZE;
+#endif
+                        }
+
                         inserted = 1;
 #endif
                         break;
@@ -933,7 +940,13 @@ namespace combotree
                     records[0].ptr = value;
 #ifndef USE_MEM
                     if (flush)
+                    {
                         clflush((char *)&records[0]);
+#ifdef TEST_PMEM_SIZE
+                        NVM::pmem_size += CACHE_LINE_SIZE;
+#endif
+                    }
+
 #endif
                 }
             }
@@ -949,7 +962,7 @@ namespace combotree
             {
                 if (records[i].key == key)
                 {
-                    // simply set zere
+                    // simply set zero
                     records[i].key = 0;
                     records[i].ptr = 0;
                     return true;
@@ -1007,6 +1020,9 @@ namespace combotree
             memcpy(pvalue(pos), &value, value_size);
 #ifndef USE_MEM
             clflush(pvalue(pos));
+#ifdef TEST_PMEM_SIZE
+            NVM::pmem_size += CACHE_LINE_SIZE;
+#endif
             fence();
 #endif
             return status::OK;
@@ -1084,6 +1100,9 @@ namespace combotree
             records[m].ptr = 0;
 #ifndef USE_MEM
             clflush(&records[last_pos / 2].ptr);
+#ifdef TEST_PMEM_SIZE
+            NVM::pmem_size += CACHE_LINE_SIZE;
+#endif
 #endif
             this->next_bucket = next;
 #ifndef USE_MEM
@@ -1093,6 +1112,9 @@ namespace combotree
             last_pos = m;
 #ifndef USE_MEM
             clflush(&header);
+#ifdef TEST_PMEM_SIZE
+            NVM::pmem_size += CACHE_LINE_SIZE;
+#endif
             fence();
 #endif
             return status::OK;
@@ -1175,6 +1197,9 @@ namespace combotree
             last_pos++;
 #ifndef USE_MEM
             clflush(&header);
+#ifdef TEST_PMEM_SIZE
+            NVM::pmem_size += CACHE_LINE_SIZE;
+#endif
 #endif
             // Common::timers["CLevel_times"].end();
             return status::OK;
@@ -1276,6 +1301,9 @@ namespace combotree
             entries--;
 #ifndef USE_MEM
             clflush(&header);
+#ifdef TEST_PMEM_SIZE
+            NVM::pmem_size += CACHE_LINE_SIZE;
+#endif
             fence();
 #endif
             return status::OK;
@@ -1885,6 +1913,9 @@ namespace combotree
             entrys[0].pointer.Setup(mem, key, prefix_len);
 #ifndef USE_MEM
             clflush((void *)&entrys[0]);
+#ifdef TEST_PMEM_SIZE
+            NVM::pmem_size += CACHE_LINE_SIZE;
+#endif
 #endif
             //   clevel.Setup(mem, buf.suffix_bytes);
             // std::cout << "Entry key: " << key << std::endl;
@@ -1901,6 +1932,9 @@ namespace combotree
             (entrys[0].pointer.pointer(mem->BaseAddr()))->Put(mem, key, value);
 #ifndef USE_MEM
             clflush(&entrys[0]);
+#ifdef TEST_PMEM_SIZE
+            NVM::pmem_size += CACHE_LINE_SIZE;
+#endif
 #endif
             // std::cout << "Entry key: " << key << std::endl;
         }
@@ -1912,6 +1946,9 @@ namespace combotree
             entrys[0].buf.entries = 1;
 #ifndef USE_MEM
             clflush(&entrys[0]);
+#ifdef TEST_PMEM_SIZE
+            NVM::pmem_size += CACHE_LINE_SIZE;
+#endif
 #endif
             // std::cout << "Entry key: " << key << std::endl;
         }
@@ -1972,6 +2009,9 @@ namespace combotree
                 if (split)
                     *split = true;
                 clflush(&entrys[0]);
+#ifdef TEST_PMEM_SIZE
+                NVM::pmem_size += CACHE_LINE_SIZE;
+#endif
                 goto retry;
             }
             // if(ret != status::OK) {

@@ -1,7 +1,7 @@
 #!/bin/bash
 BUILDDIR=$(dirname "$0")/../build/
 WorkLoad="/home/wjy/asia-latest.csv"
-Loadname="longlat-insert-ratio"
+Loadname="lognormal-150m"
 function Run() {
     dbname=$1
     loadnum=$2
@@ -9,15 +9,16 @@ function Run() {
     scansize=$4
     thread=$5
 
-    date | tee microbench-${dbname}-${Loadname}.txt
+    # date | tee microbench-${dbname}-${Loadname}.txt
+    date | tee scalability-nvm-write-${dbname}-${Loadname}.txt
     # gdb --args #
     # numactl --cpubind=1 --membind=1 \
     numactl --cpubind=1 --membind=1 ${BUILDDIR}/microbench --dbname ${dbname} --load-size ${loadnum} \
     --put-size ${opnum} --get-size ${opnum} --workload ${WorkLoad} \
-    --loadstype 3 -t $thread | tee -a microbench-${dbname}-${Loadname}.txt
+    --loadstype 5 -t $thread | tee -a scalability-nvm-write-${dbname}-${Loadname}.txt
 
     echo "${BUILDDIR}/microbench --dbname ${dbname} --load-size ${loadnum} "\
-    "--put-size ${opnum} --get-size ${opnum} --workload ${WorkLoad} --loadstype 3 -t $thread"
+    "--put-size ${opnum} --get-size ${opnum} --workload ${WorkLoad} --loadstype 5 -t $thread"
     
     # Loadname="ycsb-insert-ratio"
 
@@ -72,7 +73,10 @@ function main() {
 # main fastfair 400000000 10000000 100000 1
 # main xindex 200000000 10000000 100000 1
 # main pgm 400000000 10000000 100000 1
-# main lipp 180000000 10000000 100000 1
-main alex 400000000 10000000 100000 1
+main alex 150000000 10000000 100000 1
+# main lipp 200000000 10000000 100000 1
+# main xindex 200000000 10000000 100000 1
+# main lipp 150000000 10000000 100000 1
 # main letree 400000000 10000000 100000 1
 # main all 400000000 10000000 100000 1
+# main alex 10000 1000 100000 1

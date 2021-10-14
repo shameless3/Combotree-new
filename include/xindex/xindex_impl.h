@@ -264,11 +264,11 @@ namespace xindex
     {
       if (group_i % 50000 == 0)
       {
-        std::cout << "group_i: " << group_i << endl;
+        std::cout << "group_i: " << group_i << std::endl;
       }
       group_t *volatile *group = &(root->groups[group_i].second);
       while ((*group) != nullptr){
-        std::cout<<(*group)->array_size<<endl;
+        std::cout<<(*group)->array_size<<std::endl;
         group_num++;
         if((*group)->array_size < min){
           min = (*group)->array_size;
@@ -281,11 +281,11 @@ namespace xindex
       }
     }
     avg = total /end_group_i;
-    std::cout << "xindex group arraysize info" << endl;
-    std::cout << "min :" << min <<endl;
-    std::cout << "max :" << max <<endl;
-    std::cout << "avg :" << avg <<endl;
-    std::cout << "group_size: " << group_num << endl;
+    std::cout << "xindex group arraysize info" << std::endl;
+    std::cout << "min :" << min <<std::endl;
+    std::cout << "max :" << max <<std::endl;
+    std::cout << "avg :" << avg <<std::endl;
+    std::cout << "group_size: " << group_num << std::endl;
     return end_group_i;
   }
 } // namespace xindex
