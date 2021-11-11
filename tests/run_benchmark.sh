@@ -7,11 +7,12 @@ function Run() {
     opnum=$3
     scansize=$4
     thread=$5
+    # gdb --args \
     ${BUILDDIR}/multi_benchmark --dbname ${dbname} --load-size ${loadnum} \
         --put-size ${opnum} --get-size ${opnum} --delete-size ${opnum}\
         --scan-test-size ${scansize} -s 10 -s 100 -s 1000 -s 10000\
         --sort-scan 10 --sort-scan 100 --sort-scan 1000 --sort-scan 10000\
-        -t $thread --use-data-file | tee multi-ycsb-${dbname}-${thread}.txt
+        -t $thread | tee multi-${dbname}-${thread}.txt
 }
 
 # DBName: combotree fastfair pgm xindex alex
@@ -58,8 +59,12 @@ function main() {
 #main letree 400000000 10000000 40000000 1
 #main alex 400000000 10000000 40000000 1
 # main xindex 400000000 10000000 40000000 1
-#main letree 400000000 10000000 40000000 1
-#main letree 400000000 10000000 40000000 1
+#main letree 400000000 10000000 400000000 1
 #main letree 40000000 10000 4000000 1
 #main lipp 400000000 10000000 40000000 1
-main all 400000000 10000000 40000000 1
+#main all 400000000 10000000 40000000 1
+
+for thread in 4 8 12 16 24 32 48
+do
+    Run letree 400000000 10000000 40000000 $thread
+done

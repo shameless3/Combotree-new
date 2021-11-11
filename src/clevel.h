@@ -94,11 +94,13 @@ class __attribute__((packed)) CLevel {
    public:
     MemControl(void* base_addr, size_t size)
       : pmem_file_(""), pmem_addr_(0), base_addr_((uint64_t)base_addr),
-        cur_addr_((uintptr_t)base_addr), end_addr_((uint8_t*)base_addr+size)
+        cur_addr_((uintptr_t)base_addr), end_addr_((uint8_t*)base_addr+size),
+        expand_times(0)
     {}
 
     MemControl(std::string pmem_file, size_t file_size)
-      : pmem_file_(pmem_file+std::to_string(file_id_++))
+      : pmem_file_(pmem_file+std::to_string(file_id_++)),
+      expand_times(0)
     {
 #ifdef USE_LIBPMEM
       int is_pmem;
@@ -164,12 +166,15 @@ class __attribute__((packed)) CLevel {
     }
 
     uint64_t Usage() const {
-      size_t kb = ((uint64_t)cur_addr_.load() - base_addr_) / 1024;
+      size_t b = (uint64_t)cur_addr_.load() - base_addr_;
+      size_t kb = b/ 1024;
       size_t mb = kb / 1024;
-      std::cout << pmem_file_ << " used:" <<  mb  << " Mib, " << kb % 1024 << "kib." << std::endl;
+      std::cout << pmem_file_ << " used: " << b <<" ( " <<  mb  << " Mib, " << kb % 1024 << " kib.)" << std::endl;
+      std::cout << "expand_times : " << expand_times << std::endl;
       return (uint64_t)cur_addr_.load() - base_addr_;
     }
 
+    uint64_t expand_times;
    private:
     std::string pmem_file_;
     void* pmem_addr_;

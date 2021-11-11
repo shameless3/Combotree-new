@@ -1,8 +1,8 @@
 #!/bin/bash
 BUILDDIR=$(dirname "$0")/../build/
-Loadname="longtitude-200m"
+Loadname="longlat-400m"
 function Run() {
-    Loadname="longtitude-200m"
+    Loadname="longlat-400m"
     dbname=$1
     loadnum=$2
     opnum=$3
@@ -11,7 +11,7 @@ function Run() {
     # gdb --args \
     numactl --cpubind=1 --membind=1 ${BUILDDIR}/scalability_test --dbname ${dbname} --load-size ${loadnum} \
         --put-size ${opnum} --get-size ${opnum} --delete-size ${opnum}\
-        -t $thread --loadstype 0 | tee scalability-nvm-write-${dbname}-${Loadname}.txt
+        -t $thread --loadstype 1 | tee scalability-nvm-write-${dbname}-${Loadname}.txt
 }
 
 function Run_LGN() {
@@ -100,6 +100,6 @@ function main() {
         Run $dbname $loadnum $opnum $scansize $thread
     fi 
 }
-main all 200000000 1000000 4000000 1
+main letree 400000000 1000000 4000000 1
 # main all_lgn 150000000 1000000 4000000 1
 # main all_ycsb 400000000 1000000 4000000 1

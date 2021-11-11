@@ -162,8 +162,8 @@ int main(int argc, char** argv) {
 
   if (use_data_file) {
     //std::string filename = "/home/wjy/lognormal-190M.bin.data";
-    std::string filename = "/home/wjy/generate_random_ycsb.dat";
-    //std::string filename = "/home/wjy/generate_random_osm_longlat.dat";
+    //std::string filename = "/home/wjy/generate_random_ycsb.dat";
+    std::string filename = "/home/wjy/generate_random_osm_longlat.dat";
     //std::string filename = "/home/wjy/generate_random_osm_longtitudes.dat";
     std::ifstream data(filename);
     if (!data.good()) {
@@ -285,40 +285,40 @@ int main(int argc, char** argv) {
   std::cout << "get: " << total_time/1000000.0 << " " << (double)GET_SIZE/(double)total_time*1000000.0/1000.0 << std::endl;
 
   // scan
-  for (auto scan : scan_size) {
-    size_t total_size = std::min(SCAN_TEST_SIZE / scan, LOAD_SIZE+PUT_SIZE);
-    per_thread_size = total_size / thread_num;
-    timer.Clear();
-    timer.Record("start");
-    for (int i = 0; i < thread_num; ++i) {
-      threads.emplace_back([=,&key](){
-        size_t start_pos = i*per_thread_size;
-        size_t size = (i == thread_num-1) ? total_size-(thread_num-1)*per_thread_size : per_thread_size;
-        for (size_t j = 0; j < size; ++j) {
-          uint64_t start_key = key[start_pos+j];
-          // ComboTree::NoSortIter iter(db, start_key);
-          // if (iter.end())
-          //   continue;
-          // for (size_t k = 0; k < scan; ++k) {
-          //   if (iter.key() != iter.value()) {
-          //     std::cout << "scan error" << std::endl;
-          //     assert(0);
-          //   }
-          //   if (!iter.next())
-          //     break;
-          // }
-          std::vector<std::pair<uint64_t, uint64_t>> results;
-          db->Scan(start_key, scan, results);
-        }
-      });
-    }
-    for (auto& t : threads)
-      t.join();
-    timer.Record("stop");
-    threads.clear();
-    total_time = timer.Microsecond("stop", "start");
-    std::cout << "scan " << scan << ": " << total_time/1000000.0 << " " << (double)total_size/(double)total_time*1000000.0/1000.0 << std::endl;
-  }
+  // for (auto scan : scan_size) {
+  //   size_t total_size = std::min(SCAN_TEST_SIZE / scan, LOAD_SIZE+PUT_SIZE);
+  //   per_thread_size = total_size / thread_num;
+  //   timer.Clear();
+  //   timer.Record("start");
+  //   for (int i = 0; i < thread_num; ++i) {
+  //     threads.emplace_back([=,&key](){
+  //       size_t start_pos = i*per_thread_size;
+  //       size_t size = (i == thread_num-1) ? total_size-(thread_num-1)*per_thread_size : per_thread_size;
+  //       for (size_t j = 0; j < size; ++j) {
+  //         uint64_t start_key = key[start_pos+j];
+  //         // ComboTree::NoSortIter iter(db, start_key);
+  //         // if (iter.end())
+  //         //   continue;
+  //         // for (size_t k = 0; k < scan; ++k) {
+  //         //   if (iter.key() != iter.value()) {
+  //         //     std::cout << "scan error" << std::endl;
+  //         //     assert(0);
+  //         //   }
+  //         //   if (!iter.next())
+  //         //     break;
+  //         // }
+  //         std::vector<std::pair<uint64_t, uint64_t>> results;
+  //         db->Scan(start_key, scan, results);
+  //       }
+  //     });
+  //   }
+  //   for (auto& t : threads)
+  //     t.join();
+  //   timer.Record("stop");
+  //   threads.clear();
+  //   total_time = timer.Microsecond("stop", "start");
+  //   std::cout << "scan " << scan << ": " << total_time/1000000.0 << " " << (double)total_size/(double)total_time*1000000.0/1000.0 << std::endl;
+  // }
 
   // sort_scan
   // for (auto scan : sort_scan_size) {
@@ -359,32 +359,32 @@ int main(int argc, char** argv) {
   // }
 
   // Delete
-  Random delete_rnd(0, DELETE_SIZE-1);
-  for (size_t i = 0; i < DELETE_SIZE; ++i)
-    std::swap(key[i],key[delete_rnd.Next()]);
-  per_thread_size = DELETE_SIZE / thread_num;
-  timer.Clear();
-  timer.Record("start");
-  for (int i = 0; i < thread_num; ++i) {
-    threads.emplace_back([=,&key](){
-      size_t start_pos = i*per_thread_size;
-      size_t size = (i == thread_num-1) ? DELETE_SIZE-(thread_num-1)*per_thread_size : per_thread_size;
-      for (size_t j = 0; j < size; ++j) {
-        if (db->Delete(key[start_pos+j]) != true) {
-          std::cout << "delete error!" << std::endl;
-          assert(0);
-        }
-      }
-    });
-  }
-  for (auto& t : threads)
-    t.join();
-  timer.Record("stop");
-  threads.clear();
-  total_time = timer.Microsecond("stop", "start");
-  std::cout << "delete: " << total_time/1000000.0 << " " << (double)DELETE_SIZE/(double)total_time*1000000.0/1000.0 << std::endl;
+  // Random delete_rnd(0, DELETE_SIZE-1);
+  // for (size_t i = 0; i < DELETE_SIZE; ++i)
+  //   std::swap(key[i],key[delete_rnd.Next()]);
+  // per_thread_size = DELETE_SIZE / thread_num;
+  // timer.Clear();
+  // timer.Record("start");
+  // for (int i = 0; i < thread_num; ++i) {
+  //   threads.emplace_back([=,&key](){
+  //     size_t start_pos = i*per_thread_size;
+  //     size_t size = (i == thread_num-1) ? DELETE_SIZE-(thread_num-1)*per_thread_size : per_thread_size;
+  //     for (size_t j = 0; j < size; ++j) {
+  //       if (db->Delete(key[start_pos+j]) != true) {
+  //         std::cout << "delete error!" << std::endl;
+  //         assert(0);
+  //       }
+  //     }
+  //   });
+  // }
+  // for (auto& t : threads)
+  //   t.join();
+  // timer.Record("stop");
+  // threads.clear();
+  // total_time = timer.Microsecond("stop", "start");
+  // std::cout << "delete: " << total_time/1000000.0 << " " << (double)DELETE_SIZE/(double)total_time*1000000.0/1000.0 << std::endl;
 
-    // Put
+  // Put
   per_thread_size = PUT_SIZE / thread_num;
   timer.Clear();
   timer.Record("start");

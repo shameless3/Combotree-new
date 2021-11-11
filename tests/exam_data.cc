@@ -1,12 +1,13 @@
 #include <bits/stdc++.h>
+
 // Loads values from binary file into vector.
 template <typename T>
-static std::vector<T> load_data(const std::string &filename,
+static std::vector<T> load_data(const std::string &filename,const std::string output,
                                 size_t max_size = 1e10,
-                                bool print = true)
+                                bool print = true,int used_size = 400000000)
 {
     std::vector<T> data;
-    std::vector<uint64_t> new_data;
+    std::vector<T> mini_data;
     std::ifstream in(filename, std::ios::binary);
     if (!in.is_open())
     {
@@ -15,48 +16,31 @@ static std::vector<T> load_data(const std::string &filename,
     }
     // Read size.
     uint64_t size = 0;
-    if (filename == "/home/wjy/lognormal-190M.bin.data")
-    {
-        std::cout << "lognormal data size 190M" << std::endl;
-        size = 190000000;
-    }
-    else
-    {
-        in.read(reinterpret_cast<char *>(&size), sizeof(uint64_t));
-        std::cerr << "Data size: " << size << std::endl;
-    }
-    size = std::min(size, max_size);
+
+    in.read(reinterpret_cast<char *>(&size), sizeof(uint64_t));
+    std::cerr << "Data size: " << size << std::endl;
+    size = used_size;
     data.resize(size);
     // Read values.
     in.read(reinterpret_cast<char *>(data.data()), size * sizeof(T));
     in.close();
-    int count = 0;
-    for (int i = 0; i < data.size(); i++)
-    {
-        if (data[i] <= 0)
-        {
-            count++;
-            continue;
-        }else{
-            new_data.push_back((uint64_t)data[i]);
-        }
-        if (i % 10000000 == 0)
-        {
-            std::cout << "operate " << i << std::endl;
-        }
+    sort(data.begin(),data.end());
+    int step = size/10000;
+    std::ofstream out(output);
+    for(int i = 0;i<size;i+=step){
+        out << data[i] << std::endl;
     }
-    size = new_data.size();
-    std::ofstream out("/home/wjy/lognormal.dat", std::ios::binary);
-    out.write(reinterpret_cast<char *>(&size), sizeof(uint64_t));
-    out.write(reinterpret_cast<char *>(new_data.data()), data.size() * sizeof(uint64_t));
     out.close();
-    std::cout << "count = " << count << std::endl;
-    std::cout << "new data size " << new_data.size() << std::endl;
+    std::cout << "finished " << output << std::endl;
     return data;
 }
 
 int main()
 {
-    load_data<long>("/home/wjy/lognormal-190M.bin.data");
+    // CDF
+    load_data<unsigned long>("/home/wjy/generate_random_osm_longtitudes.dat","/home/wjy/ltd_cdf.txt",200000000);
+    load_data<unsigned long>("/home/wjy/generate_random_osm_longlat.dat","/home/wjy/llt_cdf.txt",400000000);
+    load_data<unsigned long>("/home/wjy/lognormal.dat","/home/wjy/lgn_cdf.txt",190000000);
+    load_data<unsigned long>("/home/wjy/generate_random_ycsb.dat","/home/wjy/ycsb_cdf.txt",400000000);
     return 0;
 }

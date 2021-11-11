@@ -18,7 +18,7 @@ uint64_t  pmem_size = 0;
 
 #ifdef SERVER
 const size_t common_alloc_size = 4 *1024 * 1024 * 1024UL;
-const size_t data_alloc_size = 240 * 1024 * 1024 * 1024UL;
+const size_t data_alloc_size = 120 * 1024 * 1024 * 1024UL;
 #else
 const size_t common_alloc_size = 1024 * 1024 * 1024UL;
 const size_t data_alloc_size = 4 * 1024 * 1024 * 1024UL;

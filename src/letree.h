@@ -15,7 +15,6 @@
 
 namespace combotree
 {
-
     static const size_t max_entry_count = 1024;
     static const size_t min_entry_count = 64;
     typedef combotree::PointerBEntry bentry_t;
@@ -289,24 +288,24 @@ namespace combotree
             return ret;
         }
 
-        bool Scan(CLevel::MemControl *mem, uint64_t start_key, int &len, std::vector<std::pair<uint64_t, uint64_t>> &results) const
+        bool Scan(CLevel::MemControl *mem, uint64_t start_key, int &len, std::vector<std::pair<uint64_t, uint64_t>> &results, bool if_first) const
         {
             int entry_id;
             bool ret;
-            if (start_key == 0)
+            if (if_first)
             {
                 entry_id = 0;
-                ret = entry_space[entry_id].Scan(mem, 0, len, results);
+                ret = entry_space[entry_id].Scan(mem, start_key, len, results,if_first);
             }
             else
             {
                 entry_id = find_entry(start_key);
-                ret = entry_space[entry_id].Scan(mem, start_key, len, results);
+                ret = entry_space[entry_id].Scan(mem, start_key, len, results,false);
             }
-            while (ret != status::OK && entry_id < nr_entries_ - 1)
+            while (!ret && entry_id < nr_entries_ - 1)
             {
                 ++entry_id;
-                ret = entry_space[entry_id].Scan(mem, 0, len, results);
+                ret = entry_space[entry_id].Scan(mem, start_key, len, results,false);
             }
             //cout << "in group:" << len << endl;
             return ret;
@@ -363,12 +362,17 @@ namespace combotree
                 new (&it) bentry_t::EntryIter(&entry_space[i]);
                 while (!it.end())
                 {
+                    //std::cout << entry_space[i].buf.entries << std::endl;
                     new (&new_entry_space[new_entry_count++]) bentry_t(&(*it));
+                    //std::cout << entry_space[i].buf.entries << std::endl;
                     it.next();
                 }
             }
-
-            assert(next_entry_count == new_entry_count);
+            if(next_entry_count != new_entry_count){
+                std::cout << "next_entry_count = " << next_entry_count << " new_entry_count = " << new_entry_count << " nr_entries = " << nr_entries_<< std::endl;
+                // assert(next_entry_count == new_entry_count);
+            }
+            
 
             NVM::Mem_persist(new_entry_space, new_entry_count * sizeof(bentry_t));
 
@@ -377,7 +381,7 @@ namespace combotree
             entry_space = new_entry_space;
             nr_entries_ = new_entry_count;
             next_entry_count = nr_entries_;
-
+            mem->expand_times++;
             // uint64_t expand_time = timer.End();
             // LOG(Debug::INFO, "Finish expanding group, new entry count %ld,  expansion time is %lfs",
             //         nr_entries_, (double)expand_time/1000000.0);
@@ -396,7 +400,7 @@ namespace combotree
         {
             std::cout << "nr_entrys: " << nr_entries_ << "\t";
             std::cout << "entry size:" << sizeof(bentry_t) << "\t";
-            // clevel_mem_->Usage();
+            //clevel_mem_->Usage();
         }
 
     private:
@@ -588,12 +592,12 @@ namespace combotree
         class Iter;
 
     public:
-        letree() : nr_groups_(0)
+        letree() : nr_groups_(0), root_expand_times(0)
         {
             clevel_mem_ = new CLevel::MemControl(CLEVEL_PMEM_FILE, CLEVEL_PMEM_FILE_SIZE);
         }
 
-        letree(size_t groups) : nr_groups_(groups)
+        letree(size_t groups) : nr_groups_(groups), root_expand_times(0)
         {
             clevel_mem_ = new CLevel::MemControl(CLEVEL_PMEM_FILE, CLEVEL_PMEM_FILE_SIZE);
             group_space = (group *)NVM::data_alloc->alloc_aligned(groups * sizeof(group));
@@ -684,6 +688,7 @@ namespace combotree
             auto ret = group_space[group_id].Put(clevel_mem_, key, value);
             if (ret == status::Full)
             { // LearnGroup 太大了
+                root_expand_times++;
                 ExpandTree();
                 goto retry0;
             }
@@ -789,15 +794,15 @@ namespace combotree
             {
                 group_id = find_group(start_key);
             }
-            auto ret = group_space[group_id].Scan(clevel_mem_, start_key, len, results);
-            while (ret != status::OK && group_id < nr_groups_ - 1)
+            auto ret = group_space[group_id].Scan(clevel_mem_, start_key, len, results,true);
+            while (!ret && group_id < nr_groups_ - 1)
             {
                 ++group_id;
                 while (group_space[group_id].nr_entries_ == 0)
                 {
                     ++group_id;
                 }
-                ret = group_space[group_id].Scan(clevel_mem_, 0, len, results);
+                ret = group_space[group_id].Scan(clevel_mem_, start_key, len, results,false);
             }
             // cout << len << endl;
             if (len > 0)
@@ -813,8 +818,8 @@ namespace combotree
             int entry_seq = 0;
 
             // Show();
-            Meticer timer;
-            timer.Start();
+            // Meticer timer;
+            // timer.Start();
             {
                 /*采用一层线性模型*/
                 LearnModel::rmi_line_model<uint64_t>::builder_t bulder(&model);
@@ -919,7 +924,7 @@ namespace combotree
             pmem_persist(new_group_space, new_nr_groups * sizeof(group));
             nr_groups_ = new_nr_groups;
             group_space = new_group_space;
-            uint64_t expand_time = timer.End();
+            // uint64_t expand_time = timer.End();
             // LOG(Debug::INFO, "Finish expanding group, new group count %ld,  expansion time is %lfs",
             //nr_groups_, (double)expand_time/1000000.0);
             // Show();
@@ -934,7 +939,10 @@ namespace combotree
             }
         }
 
-        void Info() {}
+        void Info() {
+            std::cout << "root_expand_times : " << root_expand_times << std::endl;
+            clevel_mem_->Usage();
+        }
 
     private:
         group *group_space;
@@ -942,6 +950,7 @@ namespace combotree
         LearnModel::rmi_line_model<uint64_t> model;
         CLevel::MemControl *clevel_mem_;
         int entries_per_group = min_entry_count;
+        uint64_t root_expand_times;
     };
 
     class letree::Iter

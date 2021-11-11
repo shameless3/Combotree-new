@@ -874,6 +874,9 @@ namespace combotree
                                 if (do_flush)
                                 {
                                     clflush((char *)records_ptr);
+#ifdef TEST_PMEM_SIZE
+                                    NVM::pmem_size += CACHE_LINE_SIZE;
+#endif
                                 }
 #endif
                             }
@@ -911,7 +914,9 @@ namespace combotree
                         if (do_flush)
                         {
                             clflush((char *)records_ptr);
+#ifdef TEST_PMEM_SIZE
                             NVM::pmem_size += CACHE_LINE_SIZE;
+#endif
                         }
 #endif
                     }
@@ -1078,6 +1083,7 @@ namespace combotree
         status Expand_(CLevel::MemControl *mem, SortBuncket *&next, uint64_t &split_key, int &prefix_len)
         {
             // int expand_pos = entries / 2;
+
             next = new (mem->Allocate<SortBuncket>()) SortBuncket(key(last_pos / 2), prefix_len);
             // int idx = 0;
             split_key = key(last_pos / 2);
@@ -1117,6 +1123,7 @@ namespace combotree
 #endif
             fence();
 #endif
+            mem->expand_times++;
             return status::OK;
         }
 
@@ -1233,7 +1240,7 @@ namespace combotree
             return status::OK;
         }
 
-        status Scan(CLevel::MemControl *mem, uint64_t start_key, int &len, std::vector<std::pair<uint64_t, uint64_t>> &results) const
+        status Scan(CLevel::MemControl *mem, uint64_t start_key, int &len, std::vector<std::pair<uint64_t, uint64_t>> &results , bool if_first) const
         {
             int pos = 0;
             if (start_key != 0)
@@ -1334,7 +1341,7 @@ namespace combotree
             uint64_t ptr;
         };
 
-        const static size_t buf_size = bucket_size - (16 + 3);
+        const static size_t buf_size = bucket_size - (8 + 4);
         const static size_t entry_size = (key_size + value_size);
         const static size_t entry_count = (buf_size / entry_size);
 
@@ -1447,32 +1454,37 @@ namespace combotree
 
         status PutBufKV(uint64_t new_key, uint64_t value, int &data_index, bool flush = true)
         {
-            if (entries >= max_entries)
+            if (data_index >= max_entries)
             {
                 return status::Full;
             }
-            records[entries].key = new_key;
-            records[entries].ptr = value;
+            records[data_index].key = new_key;
+            records[data_index].ptr = value;
             if (flush)
-                clflush((char *)&records[entries]);
+            {
+                clflush((char *)&records[data_index]);
+#ifdef TEST_PMEM_SIZE
+                NVM::pmem_size += CACHE_LINE_SIZE;
+#endif
+            }
             fence();
             return status::OK;
         }
 
-        inline bool remove_key(uint64_t key, uint64_t *value)
+        inline bool remove_key(uint64_t key, uint64_t *value, int idx)
         {
             bool find = false;
             int pos = Find(key, find);
             if (find)
             {
-                if (pos == entries - 1)
+                if (pos == idx - 1)
                     return true;
                 else
                 {
                     if (value)
                         *value = records[pos].ptr;
-                    records[pos].key = records[entries - 1].key;
-                    records[pos].ptr = records[entries - 1].ptr;
+                    records[pos].key = records[idx - 1].key;
+                    records[pos].ptr = records[idx - 1].ptr;
                     return true;
                 }
             }
@@ -1483,6 +1495,9 @@ namespace combotree
         {
             memcpy(pvalue(pos), &value, value_size);
             clflush(pvalue(pos));
+#ifdef TEST_PMEM_SIZE
+            NVM::pmem_size += CACHE_LINE_SIZE;
+#endif
             fence();
             return status::OK;
         }
@@ -1538,10 +1553,11 @@ namespace combotree
             return status::OK;
         }
 
-        status Expand_(CLevel::MemControl *mem, UnSortBuncket *&next, uint64_t &split_key, int &prefix_len)
+        status Expand_(CLevel::MemControl *mem,
+                       UnSortBuncket *&next, uint64_t &split_key, int &prefix_len)
         {
             // int expand_pos = entries / 2;
-            int sorted_index_[16];
+            int sorted_index_[entry_count];
             // std::cout << "expand call getSortedIndex" << std::endl;
             getSortedIndex(sorted_index_);
             split_key = key(sorted_index_[entries / 2]);
@@ -1552,34 +1568,44 @@ namespace combotree
             //}
             if (key(sorted_index_[0]) >= split_key)
             {
+                std::cerr << "split_key_index" << entries / 2 << "split_key:" << split_key << "fisrt key: " << key(sorted_index_[0]) << std::endl;
                 std::cout << "split_key is not the middle key" << std::endl;
             }
             assert(key(sorted_index_[0]) < split_key);
             next = new (mem->Allocate<UnSortBuncket>()) UnSortBuncket(split_key, prefix_len);
             // next = new (NVM::data_alloc->alloc(sizeof(UnSortBuncket))) UnSortBuncket(split_key, prefix_len);
-            // int idx = 0;
-            prefix_len = 0;
             int idx = 0;
+            prefix_len = 0;
             for (int i = entries / 2; i < entries; i++)
             {
                 // next->Put(nullptr, key(i), value(i));
                 next->PutBufKV(key(sorted_index_[i]), value(sorted_index_[i]), idx, false);
-                next->entries++;
-                clflush(&next->header);
+                idx++;
+                // next->entries++;
+                // clflush(&next->header);
             }
+            next->entries = entries - entries / 2;
             next->next_bucket = this->next_bucket;
             NVM::Mem_persist(next, sizeof(*next));
-            int m = entries;
-            for (int i = entries / 2; i < m; i++)
+            idx = entries;
+            for (int i = entries / 2; i < entries; i++)
             {
                 // uint64_t *value_;
-                remove_key(key(sorted_index_[i]), nullptr);
+                remove_key(key(sorted_index_[i]), nullptr, idx);
                 fence();
-                entries--;
-                clflush(&header);
+                idx--;
+
+                //old
+                // remove_key(key(sorted_index_[i]), nullptr,idx);
+                // fence();
+                // entries--;
+                //clflush(&header);
             }
+            entries = entries / 2;
             this->next_bucket = next;
             fence();
+            NVM::Mem_persist(this, sizeof(*this));
+            mem->expand_times++;
             return status::OK;
         }
 
@@ -1629,7 +1655,7 @@ namespace combotree
         status Put(CLevel::MemControl *mem, uint64_t key, uint64_t value)
         {
             status ret = status::OK;
-            int idx = 0;
+            int idx = entries;
             // Common::timers["CLevel_times"].start();
             ret = PutBufKV(key, value, idx);
             if (ret != status::OK)
@@ -1638,6 +1664,9 @@ namespace combotree
             }
             entries++;
             clflush(&header);
+#ifdef TEST_PMEM_SIZE
+            NVM::pmem_size += CACHE_LINE_SIZE;
+#endif
             // Common::timers["CLevel_times"].end();
             return status::OK;
         }
@@ -1668,9 +1697,54 @@ namespace combotree
             return status::OK;
         }
 
+        status Scan(CLevel::MemControl *mem, uint64_t start_key, int &len, std::vector<std::pair<uint64_t, uint64_t>> &results, bool if_first) const
+        {
+            if (if_first)
+            {
+                //scan from start_key;
+                int sorted_index_[entries];
+                getSortedIndex(sorted_index_);
+                for (int i = sorted_index_[0]; i < entries && len > 0; i++)
+                {
+                    if (this->key(sorted_index_[i]) >= start_key)
+                    {
+                        results.push_back({this->key(sorted_index_[i]), this->value(sorted_index_[i])});
+                        --len;
+                    }
+                }
+            }
+            else
+            {
+                int pos = 0;
+                if (len >= this->entries - pos)
+                {
+                    for (; pos < this->entries; pos++)
+                    {
+                        results.push_back({this->key(pos), this->value(pos)});
+                        --len;
+                    }
+                }
+                else
+                {
+                    int sorted_index_[entries];
+                    getSortedIndex(sorted_index_);
+                    while (len > 0)
+                    {
+                        results.push_back({this->key(pos), this->value(pos)});
+                        --len;
+                    }
+                }
+            }
+            if (len > 0)
+            {
+                return status::Failed;
+            }
+            return status::OK;
+        }
+
         status Delete(CLevel::MemControl *mem, uint64_t key, uint64_t *value)
         {
-            auto ret = remove_key(key, value);
+            auto ret = remove_key(key, value, entries);
             if (!ret)
             {
                 return status::NoExist;
@@ -1678,6 +1752,9 @@ namespace combotree
             fence();
             entries--;
             clflush(&header);
+#ifdef TEST_PMEM_SIZE
+            NVM::pmem_size += CACHE_LINE_SIZE;
+#endif
             fence();
             return status::OK;
         }
@@ -1707,14 +1784,14 @@ namespace combotree
             uint64_t ptr;
         };
 
-        const static size_t buf_size = bucket_size - (8 + 2);
+        const static size_t buf_size = bucket_size - (8 + 4);
         const static size_t entry_size = (key_size + value_size);
         const static size_t entry_count = (buf_size / entry_size);
 
         UnSortBuncket *next_bucket;
         union
         {
-            uint16_t header;
+            uint32_t header;
             struct
             {
                 uint16_t entries : 8;
@@ -1854,7 +1931,9 @@ namespace combotree
  */
     struct PointerBEntry
     {
+        // static const int entry_count = 64;
         static const int entry_count = 4;
+        // static const int entry_count = 8;
         struct entry
         {
             uint64_t entry_key;
@@ -1881,7 +1960,7 @@ namespace combotree
         {
             struct
             {
-                uint64_t entry_key;
+                uint64_t entry_key; // min key
                 char pointer[6];
                 union
                 {
@@ -1990,6 +2069,9 @@ namespace combotree
             // Common::timers["ALevel_times"].end();
             // std::cout << "Put key: " << key << ", value " << value << std::endl;
             auto ret = (entrys[pos].pointer.pointer(mem->BaseAddr()))->Put(mem, key, value);
+            // if(ret == status::Full){
+            //     std::cout << entrys[0].buf.entries << std::endl;
+            // }
             if (ret == status::Full && entrys[0].buf.entries < entry_count)
             { // 节点满的时候进行扩展
                 buncket_t *next = nullptr;
@@ -2005,13 +2087,18 @@ namespace combotree
                 entrys[pos + 1].buf.prefix_bytes = prefix_len;
                 entrys[pos + 1].buf.suffix_bytes = 8 - prefix_len;
                 entrys[0].buf.entries++;
+                // std::cout << entrys[0].buf.entries << std::endl;
                 // this->Show(mem);
                 if (split)
                     *split = true;
-                clflush(&entrys[0]);
-#ifdef TEST_PMEM_SIZE
-                NVM::pmem_size += CACHE_LINE_SIZE;
-#endif
+                NVM::Mem_persist(&entrys[0],sizeof(PointerBEntry));
+                // clflush(&entrys[0]);
+                // clflush(&entrys[4]);
+                // clflush(&entrys[8]);
+                // clflush(&entrys[12]);
+// #ifdef TEST_PMEM_SIZE
+//                 NVM::pmem_size += CACHE_LINE_SIZE;
+// #endif
                 goto retry;
             }
             // if(ret != status::OK) {
@@ -2044,25 +2131,30 @@ namespace combotree
             return ret == status::OK;
         }
 
-        bool Scan(CLevel::MemControl *mem, uint64_t start_key, int &len, std::vector<std::pair<uint64_t, uint64_t>> &results) const
+        bool Scan(CLevel::MemControl *mem, uint64_t start_key, int &len, std::vector<std::pair<uint64_t, uint64_t>> &results, bool if_first) const
         {
             int pos = 0;
-            if (start_key == 0)
+            status ret;
+            if (if_first)
             {
-                int pos = 0;
-                auto ret = (entrys[pos].pointer.pointer(mem->BaseAddr()))->Scan(mem, 0, len, results);
-                return ret;
+                pos = 0;
+                ret = (entrys[pos].pointer.pointer(mem->BaseAddr()))->Scan(mem, 0, len, results, if_first);
             }
             else
             {
                 int pos = Find_pos(start_key);
+                if (unlikely(pos >= entry_count || !entrys[pos].IsValid()))
+                {
+                    return false;
+                }
+                ret = (entrys[pos].pointer.pointer(mem->BaseAddr()))->Scan(mem, start_key, len, results, false);
             }
-            if (unlikely(pos >= entry_count || !entrys[pos].IsValid()))
+            pos++;
+            while (ret == status::Failed && pos < entrys[0].buf.entries)
             {
-                return false;
+                ret = (entrys[pos].pointer.pointer(mem->BaseAddr()))->Scan(mem, start_key, len, results, false);
             }
-            auto ret = (entrys[pos].pointer.pointer(mem->BaseAddr()))->Scan(mem, start_key, len, results);
-            return ret;
+            return ret == status::OK ? true : false;
         }
 
         bool Delete(CLevel::MemControl *mem, uint64_t key, uint64_t *value)
@@ -2197,18 +2289,21 @@ namespace combotree
 
             ALWAYS_INLINE bool next()
             {
+                //std::cout << "cur_idx:" << cur_idx << std::endl;
                 cur_idx++;
-                if (cur_idx < entry_->buf.entries)
+                //std::cout << "cur_idx:" << cur_idx << std::endl;
+                //std::cout << "entry_->buf.entries:" << entry_->entrys[0].buf.entries << std::endl;
+                if (cur_idx < entry_->entrys[0].buf.entries)
                 {
                     return true;
                 }
-                cur_idx = entry_->buf.entries;
+                cur_idx = entry_->entrys[0].buf.entries;
                 return false;
             }
 
             ALWAYS_INLINE bool end() const
             {
-                return cur_idx >= entry_->buf.entries;
+                return cur_idx >= entry_->entrys[0].buf.entries;
             }
 
         private:

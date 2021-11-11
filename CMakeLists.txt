@@ -1,4 +1,4 @@
-project(ComboTree)
+project(WOLI)
 cmake_minimum_required(VERSION 3.0)
 
 # cmake -D CMAKE_C_COMPILER=/usr/local/bin/gcc CMAKE_CXX_COMPILER=/usr/local/bin/g++ ../

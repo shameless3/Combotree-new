@@ -12,7 +12,10 @@
 
 namespace NVM
 {
-
+#define TEST_PMEM_SIZE
+#ifdef TEST_PMEM_SIZE
+    extern uint64_t pmem_size;
+#endif
 #define CACHE_LINE_SIZE 64
 #define mfence _mm_sfence
 #define FENCE_METHOD "_mm_sfence"
@@ -34,7 +37,7 @@ namespace NVM
         return pmem_addr_;
     }
 
-//#define USE_MEM
+// #define USE_MEM
 #ifdef USE_MEM
 
     static inline void Mem_persist(const void *addr, size_t len)
@@ -77,17 +80,19 @@ namespace NVM
     };
 #else
 
-#define TEST_PMEM_SIZE
-#ifdef TEST_PMEM_SIZE
-    extern uint64_t pmem_size;
-#endif
+
+
 
     static inline void Mem_persist(const void *addr, size_t len)
     {
         // mfence();
         pmem_persist(addr, len);
 #ifdef TEST_PMEM_SIZE
-        pmem_size += len;
+        if(len < CACHE_LINE_SIZE){
+            pmem_size += CACHE_LINE_SIZE;
+        }else{
+            pmem_size += len;
+        }
 #endif
         // mfence();
     }
@@ -145,7 +150,7 @@ namespace NVM
         void *alloc_aligned(size_t size, size_t align = 64)
         {
             std::unique_lock<std::mutex> lock(lock_);
-            size_t reserve = align - ((uint64_t)current_addr) % align;
+            size_t reserve = ((uint64_t)current_addr) % align == 0 ? 0:align - ((uint64_t)current_addr) % align;
             void *p = (char *)current_addr + reserve;
             used_ += size + reserve;
             current_addr = (char *)(current_addr) + size;

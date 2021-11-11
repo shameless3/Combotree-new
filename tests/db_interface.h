@@ -16,8 +16,8 @@
 
 //#include "mem/pgm/pgm_index_dynamic.hpp"
 #include "learnindex/pgm_index_dynamic.hpp"
-//#include "mem/xindex/xindex_impl.h"
-#include "xindex/xindex_impl.h"
+#include "mem/xindex/xindex_impl.h"
+//#include "xindex/xindex_impl.h"
 #include "alex/alex.h"
 #else
 #include "learnindex/pgm_index_dynamic.hpp"
