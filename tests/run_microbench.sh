@@ -11,15 +11,44 @@ function Run() {
 
     # # gdb --args #
     
+
+    #scalability
+    Loadname="longlat-400m"
+    date | tee scalability-tmp-${dbname}-${Loadname}.txt
+    numactl --cpubind=1 --membind=1 ${BUILDDIR}/microbench --dbname ${dbname} --load-size ${loadnum} \
+    --put-size ${opnum} --get-size ${opnum} --workload ${WorkLoad} \
+    --loadstype 3 -t $thread | tee -a scalability-tmp-${dbname}-${Loadname}.txt
+
+    echo "${BUILDDIR}/microbench --dbname ${dbname} --load-size ${loadnum} "\
+    "--put-size ${opnum} --get-size ${opnum} --workload ${WorkLoad} --loadstype 3 -t $thread"
+
     #operation bench
-    # date | tee operation-${dbname}-${Loadname}.txt
-    
+    # Loadname="ycsb-400m"
+    # date | tee scan-${dbname}-${Loadname}.txt
     # numactl --cpubind=1 --membind=1 ${BUILDDIR}/microbench --dbname ${dbname} --load-size ${loadnum} \
     # --put-size ${opnum} --get-size ${opnum} --workload ${WorkLoad} \
-    # --loadstype 3 -t $thread | tee -a operation-${dbname}-${Loadname}.txt
+    # --loadstype 6 -t $thread | tee -a scan-${dbname}-${Loadname}.txt
 
     # echo "${BUILDDIR}/microbench --dbname ${dbname} --load-size ${loadnum} "\
-    # "--put-size ${opnum} --get-size ${opnum} --workload ${WorkLoad} --loadstype 3 -t $thread"
+    # "--put-size ${opnum} --get-size ${opnum} --workload ${WorkLoad} --loadstype 6 -t $thread"
+
+    # Loadname="longtitude-200m"
+    # date | tee scan-${dbname}-${Loadname}.txt
+    # numactl --cpubind=1 --membind=1 ${BUILDDIR}/microbench --dbname ${dbname} --load-size ${loadnum} \
+    # --put-size ${opnum} --get-size ${opnum} --workload ${WorkLoad} \
+    # --loadstype 2 -t $thread | tee -a scan-${dbname}-${Loadname}.txt
+
+    # echo "${BUILDDIR}/microbench --dbname ${dbname} --load-size ${loadnum} "\
+    # "--put-size ${opnum} --get-size ${opnum} --workload ${WorkLoad} --loadstype 2 -t $thread"
+
+    # Loadname="lognormal-150m"
+    # date | tee scan-${dbname}-${Loadname}.txt
+    # numactl --cpubind=1 --membind=1 ${BUILDDIR}/microbench --dbname ${dbname} --load-size ${loadnum} \
+    # --put-size ${opnum} --get-size ${opnum} --workload ${WorkLoad} \
+    # --loadstype 5 -t $thread | tee -a scan-${dbname}-${Loadname}.txt
+
+    # echo "${BUILDDIR}/microbench --dbname ${dbname} --load-size ${loadnum} "\
+    # "--put-size ${opnum} --get-size ${opnum} --workload ${WorkLoad} --loadstype 5 -t $thread"
 
 
     # nvm write nvm size
@@ -34,14 +63,14 @@ function Run() {
 
     # diff entry count
     # Loadname="ycsb-400m"
-    date | tee entrycount-16-${dbname}-${Loadname}.txt
-    # gdb --args \
-    numactl --cpubind=1 --membind=1 ${BUILDDIR}/microbench --dbname ${dbname} --load-size ${loadnum} \
-    --put-size ${opnum} --get-size ${opnum} --workload ${WorkLoad} \
-    --loadstype 3 -t $thread | tee -a entrycount-16-${dbname}-${Loadname}.txt
+    # date | tee entrycount-16-${dbname}-${Loadname}.txt
+    # # gdb --args \
+    # numactl --cpubind=1 --membind=1 ${BUILDDIR}/microbench --dbname ${dbname} --load-size ${loadnum} \
+    # --put-size ${opnum} --get-size ${opnum} --workload ${WorkLoad} \
+    # --loadstype 3 -t $thread | tee -a entrycount-16-${dbname}-${Loadname}.txt
 
-    echo "${BUILDDIR}/microbench --dbname ${dbname} --load-size ${loadnum} "\
-    "--put-size ${opnum} --get-size ${opnum} --workload ${WorkLoad} --loadstype 3 -t $thread"
+    # echo "${BUILDDIR}/microbench --dbname ${dbname} --load-size ${loadnum} "\
+    # "--put-size ${opnum} --get-size ${opnum} --workload ${WorkLoad} --loadstype 3 -t $thread"
 
     # Loadname="lognormal-150m"
     # date | tee nvm-write-${dbname}-${Loadname}.txt
@@ -62,14 +91,14 @@ function Run() {
     # "--put-size ${opnum} --get-size ${opnum} --workload ${WorkLoad} --loadstype 2 -t $thread"
 
     # microbench
-    # Loadname="ycsb-400m"
+    # Loadname="longlat-400m"
     # date | tee microbench-${dbname}-${Loadname}-insert-ratio.txt
     # numactl --cpubind=1 --membind=1 ${BUILDDIR}/microbench --dbname ${dbname} --load-size ${loadnum} \
     # --put-size ${opnum} --get-size ${opnum} --workload ${WorkLoad} \
-    # --loadstype 6 -t $thread | tee -a microbench-${dbname}-${Loadname}-insert-ratio.txt
+    # --loadstype 3 -t $thread | tee -a microbench-${dbname}-${Loadname}-insert-ratio.txt
 
     # echo "${BUILDDIR}/microbench --dbname ${dbname} --load-size ${loadnum} "\
-    # "--put-size ${opnum} --get-size ${opnum} --workload ${WorkLoad} --loadstype 6 -t $thread"
+    # "--put-size ${opnum} --get-size ${opnum} --workload ${WorkLoad} --loadstype 3 -t $thread"
 
     # Loadname="ycsb-400m"
     # date | tee microbench-unsort-${dbname}-${Loadname}.txt
@@ -112,7 +141,7 @@ function Run() {
 
 # DBName: combotree fastfair pgm xindex alex
 function run_all() {
-    dbs="fastfair pgm"
+    dbs="letree fastfair pgm xindex"
     for dbname in $dbs; do
         echo "Run: " $dbname
         Run $dbname $1 $2 $3 1
@@ -151,7 +180,7 @@ function main() {
 # main fastfair 400000000 10000000 100000 1
 # main xindex 200000000 10000000 100000 1
 # main pgm 400000000 10000000 100000 1
-main xindex 400000000 10000000 40000000 1
+main letree 230000000 10000000 40000000 1
 # main lipp 200000000 10000000 100000 1
 # main xindex 200000000 10000000 100000 1
 # main lipp 150000000 10000000 100000 1

@@ -15,7 +15,7 @@
 
 namespace combotree
 {
-    static const size_t max_entry_count = 1024;
+    static const size_t max_entry_count = 4096;
     static const size_t min_entry_count = 64;
     typedef combotree::PointerBEntry bentry_t;
 
@@ -690,6 +690,7 @@ namespace combotree
             { // LearnGroup 太大了
                 root_expand_times++;
                 ExpandTree();
+                std::cout << "root expand " << std::endl;
                 goto retry0;
             }
             return ret;

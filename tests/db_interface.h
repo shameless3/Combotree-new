@@ -128,6 +128,7 @@ namespace dbInter
     {
       std::cout << "NVM WRITE : " << NVM::pmem_size << std::endl;
       NVM::show_stat();
+      tree_ -> PrintInfo();
     }
 
     void Close()
@@ -345,6 +346,7 @@ namespace dbInter
     {
       std::cout << "NVM WRITE : " << NVM::pmem_size << std::endl;
       NVM::show_stat();
+      lipp_->print_depth();
     }
     int Put(uint64_t key, uint64_t value)
     {
@@ -575,6 +577,7 @@ namespace dbInter
     {
       std::cout << "NVM WRITE : " << NVM::pmem_size << std::endl;
       NVM::show_stat();
+      alex_->PrintInfo();
     }
 
     int Put(uint64_t key, uint64_t value)
@@ -647,6 +650,7 @@ namespace dbInter
     void Info()
     {
       std::cout << "NVM WRITE : " << NVM::pmem_size << std::endl;
+      tree_->PrintInfo();
       NVM::show_stat();
     }
 

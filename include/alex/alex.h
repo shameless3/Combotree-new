@@ -327,6 +327,17 @@ class Alex {
     std::swap(root_node_, other.root_node_);
   }
 
+  // wjy: get tree_h
+  void PrintInfo(){
+    int tree_h = 0;
+    for (NodeIterator node_it = NodeIterator(this); !node_it.is_end();node_it.next()) {
+      if(node_it.current()->level_ > tree_h){
+        tree_h = node_it.current()->level_;
+      }
+    }
+    printf("tree_h = %d\n", tree_h);
+  }
+  
  private:
   // Deep copy of tree starting at given node
   AlexNode<T, P>* copy_tree_recursive(const AlexNode<T, P>* node) {

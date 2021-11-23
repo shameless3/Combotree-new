@@ -1931,9 +1931,7 @@ namespace combotree
  */
     struct PointerBEntry
     {
-        // static const int entry_count = 64;
-        static const int entry_count = 4;
-        // static const int entry_count = 8;
+        static const int entry_count = 12;
         struct entry
         {
             uint64_t entry_key;
@@ -2010,10 +2008,10 @@ namespace combotree
             entrys[0].pointer.Setup(mem, key, prefix_len);
             (entrys[0].pointer.pointer(mem->BaseAddr()))->Put(mem, key, value);
 #ifndef USE_MEM
-            clflush(&entrys[0]);
-#ifdef TEST_PMEM_SIZE
-            NVM::pmem_size += CACHE_LINE_SIZE;
-#endif
+            NVM::Mem_persist(&entrys[0],sizeof(PointerBEntry));
+// #ifdef TEST_PMEM_SIZE
+//             NVM::pmem_size += CACHE_LINE_SIZE;
+// #endif
 #endif
             // std::cout << "Entry key: " << key << std::endl;
         }
@@ -2024,10 +2022,10 @@ namespace combotree
             entrys[0] = *entry;
             entrys[0].buf.entries = 1;
 #ifndef USE_MEM
-            clflush(&entrys[0]);
-#ifdef TEST_PMEM_SIZE
-            NVM::pmem_size += CACHE_LINE_SIZE;
-#endif
+            NVM::Mem_persist(&entrys[0],sizeof(PointerBEntry));
+// #ifdef TEST_PMEM_SIZE
+//             NVM::pmem_size += CACHE_LINE_SIZE;
+// #endif
 #endif
             // std::cout << "Entry key: " << key << std::endl;
         }
@@ -2093,9 +2091,6 @@ namespace combotree
                     *split = true;
                 NVM::Mem_persist(&entrys[0],sizeof(PointerBEntry));
                 // clflush(&entrys[0]);
-                // clflush(&entrys[4]);
-                // clflush(&entrys[8]);
-                // clflush(&entrys[12]);
 // #ifdef TEST_PMEM_SIZE
 //                 NVM::pmem_size += CACHE_LINE_SIZE;
 // #endif

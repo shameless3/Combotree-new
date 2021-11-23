@@ -11,13 +11,13 @@ function microbench_get_iops()
 function scalability_get_write_iops()
 {
     echo $1 $2
-    cat $1 | grep "Metic-Write" | grep -v 'Read' | grep "iops" | awk '{print $9/1e3}'
+    cat $1 | grep "Metic-Read" | grep "iops" | awk '{print $6/1e3}'
 }
 
 function scalability_get_read_iops()
 {
     echo $1 $2
-    cat $1 | grep "Metic-Read"  | grep "iops" | awk '{print $9/1e3}'
+    cat $1 | grep "Metic-Write"  | grep "iops" | awk '{print $6/1e3}'
 }
 
 function scalability_get_read_iops()
@@ -43,11 +43,13 @@ function scalability_get_clevel_nvm_size()
     echo $1 $2
     cat $1 | grep "/pmem0/combotree-clevel-0" | awk '{print $3/(1024*1024*1024)}'
 }
-dbname=alex
-workload=ycsb-400m
-logfile="nvm-write-$dbname-$workload.txt"
+dbname=letree
+workload=longlat-400m
+# logfile="nvm-write-$dbname-$workload.txt"
+logfile="scalability-8192-4-$dbname-$workload.txt"
 
-scalability_get_nvm_write $logfile $dbname
+scalability_get_write_iops $logfile $dbname
+# scalability_get_read_iops $logfile $dbname
 # microbench_get_iops $logfile $dbname
 
 # dbs="letree fastfair pgm xindex lipp alex"

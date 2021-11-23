@@ -392,15 +392,36 @@ int main(int argc, char *argv[])
   } {
     // Load
     std::cout << "Start loading ...." << std::endl;
+    util::FastRandom ranny(18);
     timer.Record("start");
     for (load_pos; load_pos < LOAD_SIZE; load_pos++)
     {
       db->Put(data_base[load_pos], (uint64_t)data_base[load_pos]);
       if ((load_pos + 1) % 10000000 == 0)
       {
+        timer.Record("stop");
+        us_times = timer.Microsecond("stop", "start");
         std::cerr << "Operate: " << load_pos + 1 << std::endl;
         // 用于统计load过程中的nvm size和nvm write
-        // db->Info();
+        db->Info();
+        // 扩展性读写测试
+        std::cout << "[Metic-Read]: " << LOAD_SIZE << ": "
+              << "cost " << us_times / 1000000.0 << "s, "
+              << "iops " << (double)(10000000) / (double)us_times * 1000000.0 << " ." << std::endl;
+        timer.Clear();
+        timer.Record("start");
+        uint64_t value = 0;
+        for(uint64_t i = 0;i<1000000;i++){
+            uint64_t op_seq = ranny.RandUint32(0, load_pos - 1);
+            db->Get(data_base[op_seq], value);
+        }
+        timer.Record("stop");
+        us_times = timer.Microsecond("stop", "start");
+        std::cout << "[Metic-Write]: " << LOAD_SIZE << ": "
+              << "cost " << us_times / 1000000.0 << "s, "
+              << "iops " << (double)(1000000) / (double)us_times * 1000000.0 << " ." << std::endl;
+        timer.Clear();
+        timer.Record("start");
       }
     }
     std::cerr << std::endl;
@@ -412,12 +433,11 @@ int main(int argc, char *argv[])
               << "cost " << us_times / 1000000.0 << "s, "
               << "iops " << (double)(LOAD_SIZE) / (double)us_times * 1000000.0 << " ." << std::endl;
   }
-
-  // db->Info();
+  db->Info();
   // us_times = timer.Microsecond("stop", "start");
   // timer.Record("start");
   // Different insert_ration
-  std::vector<float> insert_ratios = {0, 1};
+  std::vector<float> insert_ratios = {0};
   // std::vector<float> insert_ratios = {0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0};
   float insert_ratio = 0;
   util::FastRandom ranny(18);
